@@ -16,6 +16,25 @@
         a.secondary { background: #334155; }
         h1, h2 { margin: 0; }
         .subtle { color: #475569; }
+        .pager { margin-top: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .pager-meta { color: #475569; font-size: 14px; }
+        .pager-controls { display: inline-flex; align-items: center; gap: 8px; }
+        .pager-btn {
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 6px 10px;
+            background: #fff;
+            color: #0f172a;
+            text-decoration: none;
+            font-size: 14px;
+            line-height: 1.2;
+        }
+        .pager-btn.is-disabled {
+            color: #94a3b8;
+            border-color: #e2e8f0;
+            pointer-events: none;
+            background: #f8fafc;
+        }
     </style>
 </head>
 <body>
@@ -80,8 +99,23 @@
                     @endforelse
                 </tbody>
             </table>
-            <div style="margin-top: 12px;">
-                {{ $products->links() }}
+            <div class="pager">
+                <div class="pager-meta">
+                    Page {{ $products->currentPage() }} of {{ $products->lastPage() }}
+                </div>
+                <div class="pager-controls">
+                    @if ($products->onFirstPage())
+                        <span class="pager-btn is-disabled">Previous</span>
+                    @else
+                        <a class="pager-btn" href="{{ $products->previousPageUrl() }}">Previous</a>
+                    @endif
+
+                    @if ($products->hasMorePages())
+                        <a class="pager-btn" href="{{ $products->nextPageUrl() }}">Next</a>
+                    @else
+                        <span class="pager-btn is-disabled">Next</span>
+                    @endif
+                </div>
             </div>
         </div>
     </div>
