@@ -62,7 +62,7 @@
                             <td>{{ $product->handle }}</td>
                             <td>{{ $product->store->domain }}</td>
                             <td>{{ $product->variants->count() }}</td>
-                            <td>{{ $lowestCurrent !== null ? '$'.number_format((float) $lowestCurrent, 2) : 'N/A' }}</td>
+                            <td>{{ $lowestCurrent !== null ? '£'.number_format((float) $lowestCurrent, 2) : 'N/A' }}</td>
                             <td>
                                 <div class="row">
                                     <a class="btn" href="{{ route('tracker.products.show', $product) }}">View</a>

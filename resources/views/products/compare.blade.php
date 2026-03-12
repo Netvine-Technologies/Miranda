@@ -18,7 +18,7 @@
         <div class="card">
             <h1>{{ $canonical->title }} Price Comparison</h1>
             <p><strong>Brand:</strong> {{ $canonical->brand ?: 'N/A' }}</p>
-            <p>Current lowest price: <strong>{{ $currentLowestPrice !== null ? '$'.number_format((float) $currentLowestPrice, 2) : 'N/A' }}</strong></p>
+            <p>Current lowest price: <strong>{{ $currentLowestPrice !== null ? '£'.number_format((float) $currentLowestPrice, 2) : 'N/A' }}</strong></p>
             <p>Stores: {{ $products->pluck('store.domain')->unique()->implode(', ') }}</p>
         </div>
 
@@ -41,8 +41,8 @@
                             <tr>
                                 <td>{{ $variant->title }}</td>
                                 <td>{{ $variant->sku ?: 'N/A' }}</td>
-                                <td>{{ $variant->currentPrice?->price !== null ? number_format((float) $variant->currentPrice->price, 2) : 'N/A' }}</td>
-                                <td>{{ $variant->currentPrice?->compare_at_price !== null ? number_format((float) $variant->currentPrice->compare_at_price, 2) : 'N/A' }}</td>
+                                <td>{{ $variant->currentPrice?->price !== null ? '£'.number_format((float) $variant->currentPrice->price, 2) : 'N/A' }}</td>
+                                <td>{{ $variant->currentPrice?->compare_at_price !== null ? '£'.number_format((float) $variant->currentPrice->compare_at_price, 2) : 'N/A' }}</td>
                                 <td>{{ $variant->currentPrice->currency ?? $product->currency ?? 'N/A' }}</td>
                                 <td>{{ $variant->currentPrice->stock_status ?? 'unknown' }}</td>
                             </tr>

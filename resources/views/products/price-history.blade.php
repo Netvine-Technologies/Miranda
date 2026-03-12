@@ -17,7 +17,7 @@
     <div class="container">
         <div class="card">
             <h1>Price History: {{ $handle }}</h1>
-            <p>Current lowest price: <strong>{{ $currentLowestPrice !== null ? '$'.number_format((float) $currentLowestPrice, 2) : 'N/A' }}</strong></p>
+            <p>Current lowest price: <strong>{{ $currentLowestPrice !== null ? '£'.number_format((float) $currentLowestPrice, 2) : 'N/A' }}</strong></p>
             <p>Stores selling this product: {{ $products->pluck('store.domain')->unique()->implode(', ') }}</p>
         </div>
 
@@ -38,7 +38,7 @@
                             <tr>
                                 <td>{{ $variant->title }}</td>
                                 <td>{{ $variant->sku ?: 'N/A' }}</td>
-                                <td>{{ $variant->currentPrice ? '$'.number_format((float) $variant->currentPrice->price, 2) : 'N/A' }}</td>
+                                <td>{{ $variant->currentPrice ? '£'.number_format((float) $variant->currentPrice->price, 2) : 'N/A' }}</td>
                                 <td>{{ $variant->currentPrice->stock_status ?? 'unknown' }}</td>
                             </tr>
                         @endforeach

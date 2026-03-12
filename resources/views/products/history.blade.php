@@ -47,7 +47,7 @@
                             <td>{{ $entry->recorded_at?->toDateTimeString() }}</td>
                             <td>{{ $entry->variant->title ?? 'N/A' }}</td>
                             <td>{{ $entry->variant->sku ?? 'N/A' }}</td>
-                            <td>{{ $entry->price !== null ? '$'.number_format((float) $entry->price, 2) : 'N/A' }}</td>
+                            <td>{{ $entry->price !== null ? '£'.number_format((float) $entry->price, 2) : 'N/A' }}</td>
                             <td>{{ $entry->stock_status }}</td>
                         </tr>
                     @empty

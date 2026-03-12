@@ -113,10 +113,15 @@ class SyncShopifyStoreProducts implements ShouldQueue
             ->latest('recorded_at')
             ->first();
 
+        $lastPrice = $lastRow?->price !== null ? round((float) $lastRow->price, 2) : null;
+        $lastCompareAtPrice = $lastRow?->compare_at_price !== null ? round((float) $lastRow->compare_at_price, 2) : null;
+        $currentPrice = $price !== null ? round((float) $price, 2) : null;
+        $currentCompareAtPrice = $compareAtPrice !== null ? round((float) $compareAtPrice, 2) : null;
+
         if (
             $lastRow
-            && (float) $lastRow->price === $price
-            && (float) $lastRow->compare_at_price === $compareAtPrice
+            && $lastPrice === $currentPrice
+            && $lastCompareAtPrice === $currentCompareAtPrice
             && (string) $lastRow->currency === (string) $currency
             && $lastRow->stock_status === $stockStatus
         ) {

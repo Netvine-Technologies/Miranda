@@ -66,7 +66,7 @@
                             <td>{{ $variant->title }}</td>
                             <td>{{ $variant->size ?: 'N/A' }}</td>
                             <td>{{ $variant->sku ?: 'N/A' }}</td>
-                            <td>{{ $variant->currentPrice ? '$'.number_format((float) $variant->currentPrice->price, 2) : 'N/A' }}</td>
+                            <td>{{ $variant->currentPrice ? '£'.number_format((float) $variant->currentPrice->price, 2) : 'N/A' }}</td>
                             <td>{{ $variant->currentPrice->stock_status ?? 'unknown' }}</td>
                         </tr>
                     @empty
