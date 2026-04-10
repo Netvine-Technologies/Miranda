@@ -3,6 +3,8 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\LeadController;
+use App\Http\Controllers\LeadDiscoveryController;
 use App\Http\Controllers\SeoProductController;
 use App\Http\Controllers\WebStoreController;
 use App\Http\Controllers\WebProductController;
@@ -57,6 +59,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/tracker/products', [WebProductController::class, 'index'])->name('tracker.products.index');
     Route::get('/tracker/products/{product}', [WebProductController::class, 'show'])->name('tracker.products.show');
     Route::get('/tracker/products/{product}/price-history', [WebProductController::class, 'history'])->name('tracker.products.history');
+
+    Route::get('/leads/discovery', [LeadDiscoveryController::class, 'index'])->name('leads.discovery.index');
+    Route::post('/leads/discovery', [LeadDiscoveryController::class, 'start'])->name('leads.discovery.start');
+    Route::get('/leads/discovery/status', [LeadDiscoveryController::class, 'status'])->name('leads.discovery.status');
+    Route::get('/leads', [LeadController::class, 'index'])->name('leads.index');
+    Route::get('/leads/{businessLead}', [LeadController::class, 'show'])->name('leads.show');
 });
 
 Route::get('/products/{handle}/price-history', [SeoProductController::class, 'priceHistoryByHandle'])

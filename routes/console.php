@@ -1,7 +1,9 @@
 <?php
 
+use App\Jobs\LeadDiscovery\ScrapeGooglePlaces;
 use App\Jobs\ProcessPriceWatchSubscriptions;
 use App\Jobs\SyncShopifyStoreProducts;
+use App\Models\LeadScanRun;
 use App\Models\CanonicalProduct;
 use App\Models\Product;
 use App\Models\PriceWatchSubscription;
@@ -150,3 +152,29 @@ Artisan::command('queue:last-failed', function () {
     $this->line('Exception:');
     $this->line($row->exception);
 })->purpose('Show latest failed job exception');
+
+Artisan::command('scoutrabbit:scan {query} {location} {depth_mode=standard}', function () {
+    $query = (string) $this->argument('query');
+    $location = (string) $this->argument('location');
+    $depthMode = (string) $this->argument('depth_mode');
+
+    if (! in_array($depthMode, ['quick', 'standard', 'deep', 'max'], true)) {
+        $this->error('Invalid depth_mode. Use one of: quick, standard, deep, max.');
+
+        return;
+    }
+
+    $scanRun = LeadScanRun::create([
+        'query' => $query,
+        'location' => $location,
+        'status' => LeadScanRun::STATUS_QUEUED,
+    ]);
+
+    ScrapeGooglePlaces::dispatch($query, $location, $scanRun->id, $depthMode);
+
+    $this->info('Lead discovery scan dispatched.');
+    $this->line("Run ID: {$scanRun->id}");
+    $this->line("Query: {$query}");
+    $this->line("Location: {$location}");
+    $this->line("Depth mode: {$depthMode}");
+})->purpose('Dispatch Google Places lead discovery scan');
