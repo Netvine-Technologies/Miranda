@@ -10,7 +10,7 @@ use App\Http\Controllers\WebStoreController;
 use App\Http\Controllers\WebProductController;
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect('/login');
 });
 
 Route::middleware('guest')->group(function () {
