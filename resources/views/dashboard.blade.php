@@ -63,6 +63,7 @@
                 <a class="button-link" href="{{ route('stores.index') }}">Manage Stores</a>
                 <a class="button-link" href="{{ route('tracker.products.index') }}">View Products</a>
                 <a class="button-link" href="{{ route('leads.discovery.index') }}">Lead Discovery</a>
+                <a class="button-link" href="{{ route('search-discovery.index') }}">Search Discovery</a>
                 <a class="button-link" href="{{ route('leads.index') }}">Leads</a>
             </div>
 

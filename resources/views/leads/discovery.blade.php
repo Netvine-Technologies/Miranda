@@ -134,10 +134,46 @@
         .mono {
             font-family: Consolas, Monaco, 'Courier New', monospace;
         }
+        .market-summary {
+            background: #111827;
+            color: #f9fafb;
+        }
+        .market-summary h2 { margin: 0; }
+        .market-summary .muted { color: #cbd5e1; }
+        .market-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .market-card {
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 13px;
+            background: #1e293b;
+        }
+        .market-card button {
+            width: 100%;
+            margin-top: 10px;
+            padding: 7px 9px;
+            font-size: 12px;
+            background: #2563eb;
+        }
+        .market-time { font-size: 22px; font-weight: 700; margin: 7px 0 2px; }
+        .market-count { color: #86efac; font-weight: 700; }
+        .market-empty { margin: 16px 0 0; color: #cbd5e1; }
     </style>
 </head>
 <body>
     <div class="wrap">
+        <section class="card market-summary" aria-live="polite">
+            <h2>English-speaking markets open now</h2>
+            <p class="muted">Places currently within local business hours, Monday–Friday, 09:00–17:00. Select a market to prefill a lead scan.</p>
+            <p id="market-count" class="market-count">Checking local times…</p>
+            <div id="market-grid" class="market-grid"></div>
+            <p id="market-empty" class="market-empty" hidden>No listed markets are currently within business hours. The overview updates automatically.</p>
+        </section>
+
         <div class="card">
             <h1>Lead Discovery</h1>
             <p class="muted">Queue-based Google Places scan + website crawl for emails and UK phone numbers.</p>
@@ -238,6 +274,56 @@
         const statusUrl = @json(route('leads.discovery.status'));
         const runsBody = document.getElementById('runs-body');
         const migrationReady = @json((bool) ($migrationReady ?? false));
+        const englishSpeakingMarkets = @json($englishSpeakingMarkets ?? []);
+        const marketGrid = document.getElementById('market-grid');
+        const marketCount = document.getElementById('market-count');
+        const marketEmpty = document.getElementById('market-empty');
+
+        function localMarketTime(timezone) {
+            const parts = new Intl.DateTimeFormat('en-GB', {
+                timeZone: timezone,
+                weekday: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+                hourCycle: 'h23',
+            }).formatToParts(new Date());
+            const value = (type) => parts.find((part) => part.type === type)?.value || '';
+            return {
+                weekday: value('weekday'),
+                hour: Number(value('hour')),
+                label: `${value('weekday')} ${value('hour')}:${value('minute')}`,
+            };
+        }
+
+        function renderOpenMarkets() {
+            const openMarkets = englishSpeakingMarkets.filter((market) => {
+                const local = localMarketTime(market.timezone);
+                return !['Sat', 'Sun'].includes(local.weekday) && local.hour >= 9 && local.hour < 17;
+            });
+
+            marketCount.textContent = `${openMarkets.length} market${openMarkets.length === 1 ? '' : 's'} open now`;
+            marketEmpty.hidden = openMarkets.length > 0;
+            marketGrid.innerHTML = openMarkets.map((market) => {
+                const local = localMarketTime(market.timezone);
+                return `
+                    <article class="market-card">
+                        <strong>${escapeHtml(market.name)}</strong><br>
+                        <span class="muted">${escapeHtml(market.country)}</span>
+                        <div class="market-time">${escapeHtml(local.label)}</div>
+                        <span class="muted">Local time · open until 17:00</span>
+                        <button type="button" data-market-location="${escapeHtml(market.location)}">Start a scan here</button>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        marketGrid.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-market-location]');
+            if (!button) return;
+            document.getElementById('location').value = button.dataset.marketLocation;
+            document.getElementById('query').focus();
+            document.querySelector('form[action="{{ route('leads.discovery.start') }}"]').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
 
         function renderBadge(status) {
             const safe = ['queued', 'running', 'completed', 'failed'].includes(status) ? status : 'queued';
@@ -312,6 +398,9 @@
             refreshRuns();
             setInterval(refreshRuns, 3000);
         }
+
+        renderOpenMarkets();
+        setInterval(renderOpenMarkets, 60000);
     </script>
 </body>
 </html>

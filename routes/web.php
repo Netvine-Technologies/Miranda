@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadDiscoveryController;
+use App\Http\Controllers\SearchDiscoveryController;
 use App\Http\Controllers\SeoProductController;
 use App\Http\Controllers\WebStoreController;
 use App\Http\Controllers\WebProductController;
@@ -65,6 +66,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/leads/discovery/status', [LeadDiscoveryController::class, 'status'])->name('leads.discovery.status');
     Route::get('/leads', [LeadController::class, 'index'])->name('leads.index');
     Route::get('/leads/{businessLead}', [LeadController::class, 'show'])->name('leads.show');
+    Route::get('/search-discovery', [SearchDiscoveryController::class, 'index'])->name('search-discovery.index');
+    Route::post('/search-discovery', [SearchDiscoveryController::class, 'run'])->name('search-discovery.run');
+    Route::get('/search-discovery/export', [SearchDiscoveryController::class, 'export'])->name('search-discovery.export');
+    Route::get('/search-discovery/{searchDiscoveryLead}', [SearchDiscoveryController::class, 'show'])->name('search-discovery.show');
+    Route::patch('/search-discovery/{searchDiscoveryLead}', [SearchDiscoveryController::class, 'update'])->name('search-discovery.update');
 });
 
 Route::get('/products/{handle}/price-history', [SeoProductController::class, 'priceHistoryByHandle'])
