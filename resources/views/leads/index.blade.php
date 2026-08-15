@@ -137,6 +137,18 @@
                             <option value="">All batches</option>
                             @foreach (($scanRuns ?? collect()) as $run)
                                 <option value="{{ $run->id }}" {{ (int) ($scanRunId ?? 0) === $run->id ? 'selected' : '' }}>
+                                    #{{ $run->id }} - {{ $run->query }} - {{ $run->location }} -
+                                    @if ($run->business_leads_count > 0)
+                                        {{ $run->business_leads_count }} linked leads
+                                    @elseif ($run->total_places_found > 0)
+                                        {{ $run->total_places_found }} discovered (not linked)
+                                    @else
+                                        0 leads
+                                    @endif
+                                    - {{ optional($run->created_at)->format('d M Y H:i') }}
+                                </option>
+                                @continue
+                                <option value="{{ $run->id }}" {{ (int) ($scanRunId ?? 0) === $run->id ? 'selected' : '' }}>
                                     #{{ $run->id }} · {{ $run->query }} · {{ $run->location }} · {{ $run->business_leads_count }} leads · {{ optional($run->created_at)->format('d M Y H:i') }}
                                 </option>
                             @endforeach
