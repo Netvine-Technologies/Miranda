@@ -66,6 +66,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/leads/discovery/status', [LeadDiscoveryController::class, 'status'])->name('leads.discovery.status');
     Route::get('/leads', [LeadController::class, 'index'])->name('leads.index');
     Route::get('/leads/{businessLead}', [LeadController::class, 'show'])->name('leads.show');
+    Route::post('/leads/{businessLead}/notes', [LeadController::class, 'storeNote'])->name('leads.notes.store');
     Route::get('/search-discovery', [SearchDiscoveryController::class, 'index'])->name('search-discovery.index');
     Route::post('/search-discovery', [SearchDiscoveryController::class, 'run'])->name('search-discovery.run');
     Route::get('/search-discovery/export', [SearchDiscoveryController::class, 'export'])->name('search-discovery.export');

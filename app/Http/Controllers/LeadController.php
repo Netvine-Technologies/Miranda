@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\BusinessLead;
+use App\Models\LeadNote;
 use App\Models\LeadScanRun;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
@@ -117,11 +119,30 @@ class LeadController extends Controller
         $businessLead->load([
             'emails' => fn ($query) => $query->orderBy('email'),
             'phoneNumbers' => fn ($query) => $query->orderBy('phone_number'),
+            'notes' => fn ($query) => $query->with('user:id,name,email')->latest(),
         ]);
 
         return view('leads.show', [
             'lead' => $businessLead,
         ]);
+    }
+
+    public function storeNote(Request $request, BusinessLead $businessLead): RedirectResponse
+    {
+        $data = $request->validate([
+            'outcome' => ['required', 'in:'.implode(',', LeadNote::OUTCOMES)],
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $businessLead->notes()->create([
+            'user_id' => $request->user()?->id,
+            'outcome' => $data['outcome'],
+            'body' => trim($data['body']),
+        ]);
+
+        return redirect()
+            ->route('leads.show', $businessLead)
+            ->with('status', 'Lead note saved.');
     }
 
     protected function isLeadDiscoverySchemaReady(): bool

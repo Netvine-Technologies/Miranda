@@ -42,4 +42,9 @@ class BusinessLead extends Model
     {
         return $this->hasMany(LeadPhoneNumber::class);
     }
+
+    public function notes(): HasMany
+    {
+        return $this->hasMany(LeadNote::class);
+    }
 }

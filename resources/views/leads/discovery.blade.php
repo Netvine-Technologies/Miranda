@@ -168,7 +168,7 @@
     <div class="wrap">
         <section class="card market-summary" aria-live="polite">
             <h2>English-speaking markets open now</h2>
-            <p class="muted">Places currently within local business hours, Monday–Friday, 09:00–17:00. Select a market to prefill a lead scan.</p>
+            <p class="muted">Places currently within local hours of 09:00–17:00. Select a market to prefill a lead scan.</p>
             <p id="market-count" class="market-count">Checking local times…</p>
             <div id="market-grid" class="market-grid"></div>
             <p id="market-empty" class="market-empty" hidden>No listed markets are currently within business hours. The overview updates automatically.</p>
@@ -298,7 +298,7 @@
         function renderOpenMarkets() {
             const openMarkets = englishSpeakingMarkets.filter((market) => {
                 const local = localMarketTime(market.timezone);
-                return !['Sat', 'Sun'].includes(local.weekday) && local.hour >= 9 && local.hour < 17;
+                return local.hour >= 9 && local.hour < 17;
             });
 
             marketCount.textContent = `${openMarkets.length} market${openMarkets.length === 1 ? '' : 's'} open now`;
