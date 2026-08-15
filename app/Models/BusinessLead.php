@@ -51,6 +51,6 @@ class BusinessLead extends Model
 
     public function scanRuns(): BelongsToMany
     {
-        return $this->belongsToMany(LeadScanRun::class)->withTimestamps();
+        return $this->belongsToMany(LeadScanRun::class, 'lead_scan_run_business_lead')->withTimestamps();
     }
 }
