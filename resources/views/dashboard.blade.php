@@ -65,6 +65,7 @@
                 <a class="button-link" href="{{ route('leads.discovery.index') }}">Lead Discovery</a>
                 <a class="button-link" href="{{ route('search-discovery.index') }}">Search Discovery</a>
                 <a class="button-link" href="{{ route('leads.index') }}">Leads</a>
+                <a class="button-link" href="{{ route('zoom-phone.index') }}">Zoom Phone</a>
             </div>
 
             <form class="logout" method="POST" action="{{ route('logout') }}">

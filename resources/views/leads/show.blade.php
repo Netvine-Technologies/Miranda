@@ -38,6 +38,8 @@
         .source-badge { display: inline-block; margin-left: 6px; padding: 2px 6px; border-radius: 999px; background: #f3f4f6; color: #4b5563; font-size: 11px; }
         .lead-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; }
         .lead-nav .button-link.disabled { background: #94a3b8; cursor: default; }
+        .call-table { width: 100%; border-collapse: collapse; }
+        .call-table th, .call-table td { text-align: left; border-bottom: 1px solid #e5e7eb; padding: 9px 7px; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -48,6 +50,7 @@
         <p>
             <a class="button-link" href="{{ route('leads.index', ['scan_run' => $scanRunId]) }}">Back to Leads</a>
             <a class="button-link" href="{{ route('leads.discovery.index') }}">Lead Discovery</a>
+            <a class="button-link" href="{{ route('zoom-phone.index') }}" style="background:#2563eb;">Zoom Phone</a>
         </p>
 
         <div class="lead-nav">
@@ -143,7 +146,8 @@
                 <div class="contact-number">
                     <strong>{{ $phone['label'] }}</strong>
                     <span class="source-badge">{{ $phone['source'] }}</span><br>
-                    <a class="phone-link" href="tel:{{ preg_replace('/[^0-9+]/', '', (string) $phone['number']) }}">{{ $phone['number'] }}</a>
+                    <a class="phone-link" href="zoomphonecall:{{ preg_replace('/[^0-9+]/', '', (string) $phone['number']) }}">{{ $phone['number'] }}</a>
+                    <a class="source-badge" href="{{ route('zoom-phone.index', ['number' => preg_replace('/[^0-9+]/', '', (string) $phone['number'])]) }}">Open dialler</a>
                 </div>
             @endforeach
         @endif
@@ -152,7 +156,8 @@
             <h3 style="margin:22px 0 10px;">Additional numbers found</h3>
             @foreach ($additionalNumbers as $phone)
                 <div class="contact-number">
-                    <a class="phone-link" href="tel:{{ preg_replace('/[^0-9+]/', '', (string) $phone->phone_number) }}">{{ $phone->phone_number }}</a>
+                    <a class="phone-link" href="zoomphonecall:{{ preg_replace('/[^0-9+]/', '', (string) $phone->phone_number) }}">{{ $phone->phone_number }}</a>
+                    <a class="source-badge" href="{{ route('zoom-phone.index', ['number' => preg_replace('/[^0-9+]/', '', (string) $phone->phone_number)]) }}">Open dialler</a>
                     <span class="source-badge">Crawled</span>
                     @if ($phone->source_page)
                         <div class="muted" style="margin-top:5px;">Source: {{ $phone->source_page }}</div>
@@ -162,6 +167,29 @@
         @elseif ($primaryNumbers->isEmpty())
             <p class="muted">No phone numbers found.</p>
         @endif
+    </div>
+
+    <div class="card">
+        <h2>Zoom Call History</h2>
+        <p class="muted">Calls are matched to this lead using its saved phone numbers.</p>
+        <table class="call-table">
+            <thead>
+                <tr><th>Time</th><th>Direction</th><th>Result</th><th>Number</th><th>Duration</th></tr>
+            </thead>
+            <tbody>
+                @forelse ($lead->zoomCallLogs as $call)
+                    <tr>
+                        <td>{{ optional($call->occurred_at)->format('d M Y H:i') ?: '-' }}</td>
+                        <td>{{ ucfirst($call->direction ?: 'unknown') }}</td>
+                        <td>{{ $call->result ?: '-' }}</td>
+                        <td>{{ $call->external_number ?: '-' }}</td>
+                        <td>{{ $call->duration_seconds === null ? '-' : gmdate('i:s', $call->duration_seconds) }}</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="5" class="muted">No Zoom calls matched to this lead yet.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
     </div>
 
     <div class="card">

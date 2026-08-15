@@ -50,6 +50,11 @@ class BusinessLead extends Model
         return $this->hasMany(LeadNote::class);
     }
 
+    public function zoomCallLogs(): HasMany
+    {
+        return $this->hasMany(ZoomCallLog::class);
+    }
+
     public function scanRuns(): BelongsToMany
     {
         return $this->belongsToMany(LeadScanRun::class, 'lead_scan_run_business_lead')->withTimestamps();

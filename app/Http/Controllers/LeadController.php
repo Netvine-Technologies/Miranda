@@ -134,6 +134,7 @@ class LeadController extends Controller
             'emails' => fn ($query) => $query->orderBy('email'),
             'phoneNumbers' => fn ($query) => $query->orderBy('phone_number'),
             'notes' => fn ($query) => $query->with('user:id,name,email')->latest(),
+            'zoomCallLogs' => fn ($query) => $query->latest('occurred_at')->latest('id')->limit(50),
         ]);
 
         $scanRunId = $request->integer('scan_run') ?: null;

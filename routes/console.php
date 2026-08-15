@@ -136,6 +136,12 @@ Schedule::call(function (): void {
 
 Schedule::job(new ProcessPriceWatchSubscriptions)->everyFiveMinutes();
 
+Schedule::command('zoom-phone:sync --days=2')
+    ->everyFifteenMinutes()
+    ->when(fn (): bool => filled(config('zoom-phone.account_id'))
+        && filled(config('zoom-phone.client_id'))
+        && filled(config('zoom-phone.client_secret')));
+
 Artisan::command('queue:last-failed', function () {
     $row = DB::table('failed_jobs')->orderByDesc('id')->first();
 

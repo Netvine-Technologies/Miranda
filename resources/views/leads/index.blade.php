@@ -63,6 +63,7 @@
         <p class="muted">Browse discovered businesses and open each lead for full contact details.</p>
         <p>
             <a class="button-link" href="{{ route('leads.discovery.index') }}">Lead Discovery</a>
+            <a class="button-link" href="{{ route('zoom-phone.index') }}" style="background:#2563eb;">Zoom Phone</a>
             <a class="button-link" href="{{ route('dashboard') }}" style="background:#334155;">Dashboard</a>
         </p>
     </div>
@@ -185,8 +186,19 @@
                             @endif
                         </td>
                         <td class="muted">
-                            Main: {{ $lead->phone ?: '-' }}<br>
-                            Mobile: {{ $lead->mobile_phone ?: '-' }}
+                            Main:
+                            @if ($lead->phone)
+                                <a href="zoomphonecall:{{ preg_replace('/[^0-9+]/', '', (string) $lead->phone) }}">{{ $lead->phone }}</a>
+                            @else
+                                -
+                            @endif
+                            <br>
+                            Mobile:
+                            @if ($lead->mobile_phone)
+                                <a href="zoomphonecall:{{ preg_replace('/[^0-9+]/', '', (string) $lead->mobile_phone) }}">{{ $lead->mobile_phone }}</a>
+                            @else
+                                -
+                            @endif
                         </td>
                         <td>
                             <span class="chip">Emails {{ $lead->emails_count }}</span>

@@ -9,6 +9,7 @@ use App\Http\Controllers\SearchDiscoveryController;
 use App\Http\Controllers\SeoProductController;
 use App\Http\Controllers\WebStoreController;
 use App\Http\Controllers\WebProductController;
+use App\Http\Controllers\ZoomPhoneController;
 
 Route::get('/', function () {
     return redirect('/login');
@@ -67,6 +68,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/leads', [LeadController::class, 'index'])->name('leads.index');
     Route::get('/leads/{businessLead}', [LeadController::class, 'show'])->name('leads.show');
     Route::post('/leads/{businessLead}/notes', [LeadController::class, 'storeNote'])->name('leads.notes.store');
+    Route::get('/zoom-phone', [ZoomPhoneController::class, 'index'])->name('zoom-phone.index');
+    Route::post('/zoom-phone/events', [ZoomPhoneController::class, 'storeEvent'])->name('zoom-phone.events');
+    Route::post('/zoom-phone/sync', [ZoomPhoneController::class, 'sync'])->name('zoom-phone.sync');
     Route::get('/search-discovery', [SearchDiscoveryController::class, 'index'])->name('search-discovery.index');
     Route::post('/search-discovery', [SearchDiscoveryController::class, 'run'])->name('search-discovery.run');
     Route::get('/search-discovery/export', [SearchDiscoveryController::class, 'export'])->name('search-discovery.export');
