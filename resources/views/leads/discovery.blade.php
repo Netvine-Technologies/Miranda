@@ -152,6 +152,7 @@
             padding: 13px;
             background: #1e293b;
         }
+        .market-card.opening-soon { border-color: #a16207; background: #422006; }
         .market-card button {
             width: 100%;
             margin-top: 10px;
@@ -161,14 +162,15 @@
         }
         .market-time { font-size: 22px; font-weight: 700; margin: 7px 0 2px; }
         .market-count { color: #86efac; font-weight: 700; }
+        .market-opening-soon { color: #fde68a; font-weight: 700; }
         .market-empty { margin: 16px 0 0; color: #cbd5e1; }
     </style>
 </head>
 <body>
     <div class="wrap">
         <section class="card market-summary" aria-live="polite">
-            <h2>English-speaking markets open now</h2>
-            <p class="muted">Places currently within local hours of 09:00–17:00. Select a market to prefill a lead scan.</p>
+            <h2>English-speaking markets: open now &amp; opening soon</h2>
+            <p class="muted">Places within local hours of 09:00–17:00, plus markets opening in the next three hours. Select a market to prefill a lead scan.</p>
             <p id="market-count" class="market-count">Checking local times…</p>
             <div id="market-grid" class="market-grid"></div>
             <p id="market-empty" class="market-empty" hidden>No listed markets are currently within business hours. The overview updates automatically.</p>
@@ -291,26 +293,52 @@
             return {
                 weekday: value('weekday'),
                 hour: Number(value('hour')),
+                minute: Number(value('minute')),
                 label: `${value('weekday')} ${value('hour')}:${value('minute')}`,
             };
         }
 
-        function renderOpenMarkets() {
-            const openMarkets = englishSpeakingMarkets.filter((market) => {
-                const local = localMarketTime(market.timezone);
-                return local.hour >= 9 && local.hour < 17;
-            });
+        function marketAvailability(local) {
+            const openingMinute = 9 * 60;
+            const closingMinute = 17 * 60;
+            const currentMinute = (local.hour * 60) + local.minute;
 
-            marketCount.textContent = `${openMarkets.length} market${openMarkets.length === 1 ? '' : 's'} open now`;
-            marketEmpty.hidden = openMarkets.length > 0;
-            marketGrid.innerHTML = openMarkets.map((market) => {
+            if (currentMinute >= openingMinute && currentMinute < closingMinute) {
+                return { state: 'open', message: 'Open now · closes at 17:00' };
+            }
+
+            const minutesUntilOpen = openingMinute - currentMinute;
+
+            if (minutesUntilOpen > 0 && minutesUntilOpen <= 180) {
+                const hours = Math.floor(minutesUntilOpen / 60);
+                const minutes = minutesUntilOpen % 60;
+                const duration = [hours ? `${hours}h` : '', minutes ? `${minutes}m` : ''].filter(Boolean).join(' ');
+
+                return { state: 'opening_soon', message: `Opens in ${duration || 'under a minute'}` };
+            }
+
+            return null;
+        }
+
+        function renderOpenMarkets() {
+            const availableMarkets = englishSpeakingMarkets.map((market) => {
                 const local = localMarketTime(market.timezone);
+                const availability = marketAvailability(local);
+
+                return availability ? { ...market, local, ...availability } : null;
+            }).filter(Boolean);
+            const openCount = availableMarkets.filter((market) => market.state === 'open').length;
+            const openingSoonCount = availableMarkets.length - openCount;
+
+            marketCount.textContent = `${openCount} market${openCount === 1 ? '' : 's'} open now${openingSoonCount ? ` · ${openingSoonCount} opening within 3 hours` : ''}`;
+            marketEmpty.hidden = availableMarkets.length > 0;
+            marketGrid.innerHTML = availableMarkets.map((market) => {
                 return `
-                    <article class="market-card">
+                    <article class="market-card ${market.state === 'opening_soon' ? 'opening-soon' : ''}">
                         <strong>${escapeHtml(market.name)}</strong><br>
                         <span class="muted">${escapeHtml(market.country)}</span>
-                        <div class="market-time">${escapeHtml(local.label)}</div>
-                        <span class="muted">Local time · open until 17:00</span>
+                        <div class="market-time">${escapeHtml(market.local.label)}</div>
+                        <span class="${market.state === 'opening_soon' ? 'market-opening-soon' : 'muted'}">${escapeHtml(market.message)}</span>
                         <button type="button" data-market-location="${escapeHtml(market.location)}">Start a scan here</button>
                     </article>
                 `;
