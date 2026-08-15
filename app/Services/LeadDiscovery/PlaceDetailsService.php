@@ -67,7 +67,10 @@ class PlaceDetailsService
 
         $lead->update([
             'website' => $website ?: $lead->website,
-            'phone' => $phone ?: $internationalPhone ?: $lead->phone,
+            // Always prefer E.164/international formatting for click-to-call.
+            // This lets the caller's softphone (for example Zoom Phone) dial
+            // a lead correctly from any country without guessing local rules.
+            'phone' => $internationalPhone ?: $phone ?: $lead->phone,
             'mobile_phone' => $this->extractMobileNumber($phone, $internationalPhone, $lead->mobile_phone),
             'rating' => $rating ?? $lead->rating,
             'review_count' => $reviewCount ?? $lead->review_count,
