@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\DB;
 
 class LeadScanRun extends Model
@@ -65,5 +66,10 @@ class LeadScanRun extends Model
         }
 
         static::query()->whereKey($this->id)->update($updates);
+    }
+
+    public function businessLeads(): BelongsToMany
+    {
+        return $this->belongsToMany(BusinessLead::class)->withTimestamps();
     }
 }

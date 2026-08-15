@@ -131,6 +131,17 @@
                             <option value="pending" {{ ($scrapedFilter ?? '') === 'pending' ? 'selected' : '' }}>Pending</option>
                         </select>
                     </div>
+                    <div class="field">
+                        <label for="scan_run">Discovery Batch</label>
+                        <select id="scan_run" name="scan_run">
+                            <option value="">All batches</option>
+                            @foreach (($scanRuns ?? collect()) as $run)
+                                <option value="{{ $run->id }}" {{ (int) ($scanRunId ?? 0) === $run->id ? 'selected' : '' }}>
+                                    #{{ $run->id }} · {{ $run->query }} · {{ $run->location }} · {{ $run->business_leads_count }} leads · {{ optional($run->created_at)->format('d M Y H:i') }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
                     <div>
                         <button type="submit">Apply</button>
                     </div>
@@ -175,9 +186,12 @@
                             <div class="muted" style="margin-top:6px;">
                                 Rating: {{ $lead->rating ?? '-' }} | Reviews: {{ $lead->review_count ?? '-' }}
                             </div>
+                            <div class="muted" style="margin-top:6px;">
+                                Outcome: {{ $lead->latest_outcome ? ucwords(str_replace('_', ' ', $lead->latest_outcome)) : 'Not set' }}
+                            </div>
                         </td>
                         <td class="actions">
-                            <a class="button-link" href="{{ route('leads.show', $lead) }}">View</a>
+                            <a class="button-link" href="{{ route('leads.show', ['businessLead' => $lead, 'scan_run' => $scanRunId]) }}">View</a>
                         </td>
                     </tr>
                 @empty

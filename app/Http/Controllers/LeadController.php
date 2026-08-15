@@ -18,6 +18,7 @@ class LeadController extends Controller
         $leadSearch = trim((string) $request->query('lead_search', ''));
         $contactFilter = (string) $request->query('contact', '');
         $scrapedFilter = (string) $request->query('scraped', '');
+        $scanRunId = $request->integer('scan_run') ?: null;
 
         $leads = collect();
         $monthlyCostRows = collect();
@@ -33,6 +34,13 @@ class LeadController extends Controller
                 ->with([
                     'emails:id,business_lead_id,email',
                     'phoneNumbers:id,business_lead_id,phone_number',
+                ])
+                ->addSelect([
+                    'latest_outcome' => LeadNote::query()
+                        ->select('outcome')
+                        ->whereColumn('business_lead_id', 'business_leads.id')
+                        ->latest()
+                        ->limit(1),
                 ])
                 ->orderByDesc('id');
 
@@ -62,6 +70,10 @@ class LeadController extends Controller
                 $leadsQuery->where('scraped', true);
             } elseif ($scrapedFilter === 'pending') {
                 $leadsQuery->where('scraped', false);
+            }
+
+            if ($scanRunId) {
+                $leadsQuery->whereHas('scanRuns', fn ($query) => $query->whereKey($scanRunId));
             }
 
             $leads = $leadsQuery->paginate(20)->withQueryString();
@@ -109,12 +121,14 @@ class LeadController extends Controller
             'leadSearch' => $leadSearch,
             'contactFilter' => $contactFilter,
             'scrapedFilter' => $scrapedFilter,
+            'scanRunId' => $scanRunId,
+            'scanRuns' => $migrationReady ? LeadScanRun::query()->withCount('businessLeads')->orderByDesc('id')->limit(100)->get() : collect(),
             'monthlyCostRows' => $monthlyCostRows,
             'pricing' => $pricing,
         ]);
     }
 
-    public function show(BusinessLead $businessLead): View
+    public function show(Request $request, BusinessLead $businessLead): View
     {
         $businessLead->load([
             'emails' => fn ($query) => $query->orderBy('email'),
@@ -122,8 +136,24 @@ class LeadController extends Controller
             'notes' => fn ($query) => $query->with('user:id,name,email')->latest(),
         ]);
 
+        $scanRunId = $request->integer('scan_run') ?: null;
+        $scope = BusinessLead::query()
+            ->when($scanRunId, fn ($query) => $query->whereHas('scanRuns', fn ($runQuery) => $runQuery->whereKey($scanRunId)));
+
+        $previousLead = (clone $scope)
+            ->where('id', '>', $businessLead->id)
+            ->orderBy('id')
+            ->first();
+        $nextLead = (clone $scope)
+            ->where('id', '<', $businessLead->id)
+            ->orderByDesc('id')
+            ->first();
+
         return view('leads.show', [
             'lead' => $businessLead,
+            'scanRunId' => $scanRunId,
+            'previousLead' => $previousLead,
+            'nextLead' => $nextLead,
         ]);
     }
 
@@ -131,17 +161,20 @@ class LeadController extends Controller
     {
         $data = $request->validate([
             'outcome' => ['required', 'in:'.implode(',', LeadNote::OUTCOMES)],
-            'body' => ['required', 'string', 'max:5000'],
+            'body' => ['nullable', 'string', 'max:5000'],
         ]);
 
         $businessLead->notes()->create([
             'user_id' => $request->user()?->id,
             'outcome' => $data['outcome'],
-            'body' => trim($data['body']),
+            'body' => trim((string) ($data['body'] ?? '')),
         ]);
 
         return redirect()
-            ->route('leads.show', $businessLead)
+            ->route('leads.show', [
+                'businessLead' => $businessLead,
+                'scan_run' => $request->integer('scan_run') ?: null,
+            ])
             ->with('status', 'Lead note saved.');
     }
 

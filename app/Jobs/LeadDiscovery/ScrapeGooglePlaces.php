@@ -67,6 +67,10 @@ class ScrapeGooglePlaces implements ShouldQueue
                 ]
             );
 
+            if ($scanRun) {
+                $scanRun->businessLeads()->syncWithoutDetaching([$lead->id]);
+            }
+
             FetchPlaceDetails::dispatch($lead->id, $scanRun?->id);
         }
 

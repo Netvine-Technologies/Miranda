@@ -36,6 +36,8 @@
         .phone-link { color: #1d4ed8; font-family: Consolas, Monaco, 'Courier New', monospace; font-size: 16px; font-weight: 700; text-decoration: none; }
         .phone-link:hover { text-decoration: underline; }
         .source-badge { display: inline-block; margin-left: 6px; padding: 2px 6px; border-radius: 999px; background: #f3f4f6; color: #4b5563; font-size: 11px; }
+        .lead-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; }
+        .lead-nav .button-link.disabled { background: #94a3b8; cursor: default; }
     </style>
 </head>
 <body>
@@ -44,9 +46,23 @@
         <h1>{{ $lead->name }}</h1>
         <p class="muted">Lead ID #{{ $lead->id }} | Place ID {{ $lead->place_id }}</p>
         <p>
-            <a class="button-link" href="{{ route('leads.index') }}">Back to Leads</a>
+            <a class="button-link" href="{{ route('leads.index', ['scan_run' => $scanRunId]) }}">Back to Leads</a>
             <a class="button-link" href="{{ route('leads.discovery.index') }}">Lead Discovery</a>
         </p>
+
+        <div class="lead-nav">
+            @if ($previousLead)
+                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $previousLead, 'scan_run' => $scanRunId]) }}">← Previous lead</a>
+            @else
+                <span class="button-link disabled">← Previous lead</span>
+            @endif
+
+            @if ($nextLead)
+                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $nextLead, 'scan_run' => $scanRunId]) }}">Next lead →</a>
+            @else
+                <span class="button-link disabled">Next lead →</span>
+            @endif
+        </div>
 
         @if (session('status'))
             <div class="status">{{ session('status') }}</div>
@@ -143,9 +159,12 @@
 
     <div class="card">
         <h2>Contact Notes</h2>
-        <p class="muted">Record what was said and the current outcome for this prospect.</p>
+        <p class="muted">Save an outcome on its own, or add a note alongside it.</p>
         <form method="POST" action="{{ route('leads.notes.store', $lead) }}">
             @csrf
+            @if ($scanRunId)
+                <input type="hidden" name="scan_run" value="{{ $scanRunId }}">
+            @endif
             <div class="grid">
                 <div>
                     <label for="outcome">Outcome</label>
@@ -157,7 +176,7 @@
                 </div>
                 <div>
                     <label for="body">Note</label>
-                    <textarea id="body" name="body" required placeholder="e.g. Spoke to the owner. Interested in a trial; follow up Tuesday morning.">{{ old('body') }}</textarea>
+                    <textarea id="body" name="body" placeholder="Optional — e.g. Spoke to the owner. Interested in a trial; follow up Tuesday morning.">{{ old('body') }}</textarea>
                 </div>
             </div>
             <p style="margin-bottom:0;"><button type="submit">Save Note</button></p>
@@ -167,7 +186,9 @@
             @forelse ($lead->notes as $note)
                 <article class="note">
                     <span class="outcome">{{ str_replace('_', ' ', $note->outcome) }}</span>
-                    <div style="white-space:pre-wrap;margin-top:8px;">{{ $note->body }}</div>
+                    @if (filled($note->body))
+                        <div style="white-space:pre-wrap;margin-top:8px;">{{ $note->body }}</div>
+                    @endif
                     <div class="muted" style="margin-top:7px;">
                         {{ optional($note->created_at)->toDateTimeString() }}
                         @if ($note->user)
