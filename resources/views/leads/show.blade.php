@@ -85,6 +85,13 @@
                     -
                 @endif
             </p>
+            <p><strong>Booking system:</strong>
+                @if ($lead->booking_url)
+                    <a href="{{ $lead->booking_url }}" target="_blank" rel="noopener">{{ $lead->booking_url }}</a>
+                @else
+                    Not detected
+                @endif
+            </p>
             <p><strong>Rating:</strong> {{ $lead->rating ?? '-' }}</p>
             <p><strong>Reviews:</strong> {{ $lead->review_count ?? '-' }}</p>
             <p><strong>Scraped:</strong> {{ $lead->scraped ? 'Yes' : 'No' }}</p>

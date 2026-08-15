@@ -85,6 +85,10 @@ class CrawlBusinessWebsite implements ShouldQueue
             }
         }
 
+        if (! empty($result['booking_url'])) {
+            $lead->booking_url = (string) $result['booking_url'];
+        }
+
         $lead->scraped = true;
         $lead->save();
 

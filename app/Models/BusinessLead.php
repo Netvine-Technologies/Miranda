@@ -17,6 +17,7 @@ class BusinessLead extends Model
         'address',
         'city',
         'website',
+        'booking_url',
         'phone',
         'mobile_phone',
         'rating',

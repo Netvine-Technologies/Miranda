@@ -180,6 +180,9 @@
                             @if ($lead->website)
                                 <div><a href="{{ $lead->website }}" target="_blank" rel="noopener">{{ $lead->website }}</a></div>
                             @endif
+                            @if ($lead->booking_url)
+                                <div style="margin-top:6px;"><strong>Booking system:</strong> <a href="{{ $lead->booking_url }}" target="_blank" rel="noopener">Open booking link</a></div>
+                            @endif
                         </td>
                         <td class="muted">
                             Main: {{ $lead->phone ?: '-' }}<br>

@@ -10,7 +10,8 @@ class WebsiteCrawler
     /**
      * @return array{
      *     emails: array<int, array{email: string, source_page: string}>,
-     *     phone_numbers: array<int, array{phone_number: string, source_page: string}>
+     *     phone_numbers: array<int, array{phone_number: string, source_page: string}>,
+     *     booking_url: string|null
      * }
      */
     public function crawl(string $website): array
@@ -21,6 +22,7 @@ class WebsiteCrawler
             return [
                 'emails' => [],
                 'phone_numbers' => [],
+                'booking_url' => null,
             ];
         }
 
@@ -29,6 +31,7 @@ class WebsiteCrawler
         $pages = [];
         $emails = [];
         $phoneNumbers = [];
+        $bookingLinks = [];
 
         foreach ($paths as $path) {
             $path = is_string($path) && $path !== '' ? $path : '/';
@@ -70,12 +73,127 @@ class WebsiteCrawler
                     ];
                 }
             }
+
+            foreach ($this->extractBookingLinks($html, $url) as $bookingLink) {
+                $bookingLinks[$bookingLink['url']] = max(
+                    $bookingLinks[$bookingLink['url']] ?? 0,
+                    $bookingLink['score']
+                );
+            }
         }
+
+        arsort($bookingLinks);
 
         return [
             'emails' => array_values($emails),
             'phone_numbers' => array_values($phoneNumbers),
+            'booking_url' => array_key_first($bookingLinks),
         ];
+    }
+
+    /**
+     * @return array<int, array{url: string, score: int}>
+     */
+    protected function extractBookingLinks(string $html, string $pageUrl): array
+    {
+        $knownProviders = [
+            'acuityscheduling.com', 'appointy.com', 'book.app', 'bookeo.com',
+            'booksy.com', 'bsport.io', 'calendly.com', 'fresha.com', 'glofox.com',
+            'gymcatch.com', 'mindbodyonline.com', 'momence.com', 'opentable.com',
+            'resdiary.com', 'schedulicity.com', 'setmore.com', 'simplybook.me',
+            'square.site', 'squareup.com', 'gettimely.com', 'timetap.com',
+            'treatwell.co.uk', 'vagaro.com', 'wellnessliving.com', 'zenoti.com',
+        ];
+        $bookingWords = '/(?:^|[\s\/_.?&=#-])(?:book(?:ing|ings)?|book[-_ ]?now|schedule|appointment|reserve|reservation|timetable)(?=$|[\s\/_.?&=#-])/i';
+        $candidates = [];
+
+        preg_match_all(
+            '#<a\b[^>]*\bhref\s*=\s*(["\'])(.*?)\1[^>]*>(.*?)</a>#is',
+            $html,
+            $anchorMatches,
+            PREG_SET_ORDER
+        );
+
+        foreach ($anchorMatches as $match) {
+            $url = $this->resolveUrl(html_entity_decode((string) ($match[2] ?? ''), ENT_QUOTES | ENT_HTML5), $pageUrl);
+
+            if (! $url) {
+                continue;
+            }
+
+            $text = trim(strip_tags(html_entity_decode((string) ($match[3] ?? ''), ENT_QUOTES | ENT_HTML5)));
+            $score = preg_match($bookingWords, $url) ? 35 : 0;
+            $score += preg_match($bookingWords, $text) ? 25 : 0;
+            $score += $this->isKnownBookingProvider($url, $knownProviders) ? 100 : 0;
+
+            if ($score > 0) {
+                $candidates[$url] = max($candidates[$url] ?? 0, $score);
+            }
+        }
+
+        preg_match_all('#https?://[^\s"\'<>]+#i', $html, $urlMatches);
+
+        foreach ($urlMatches[0] ?? [] as $rawUrl) {
+            $url = html_entity_decode(rtrim((string) $rawUrl, '),.;'), ENT_QUOTES | ENT_HTML5);
+
+            if ($this->isKnownBookingProvider($url, $knownProviders)) {
+                $candidates[$url] = max($candidates[$url] ?? 0, 100);
+            }
+        }
+
+        arsort($candidates);
+
+        return array_map(
+            static fn (string $url, int $score): array => ['url' => $url, 'score' => $score],
+            array_keys($candidates),
+            array_values($candidates)
+        );
+    }
+
+    /**
+     * @param array<int, string> $knownProviders
+     */
+    protected function isKnownBookingProvider(string $url, array $knownProviders): bool
+    {
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+
+        foreach ($knownProviders as $provider) {
+            if ($host === $provider || str_ends_with($host, '.'.$provider)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function resolveUrl(string $candidate, string $pageUrl): ?string
+    {
+        $candidate = trim($candidate);
+
+        if ($candidate === '' || str_starts_with($candidate, '#') || preg_match('#^(?:mailto|tel|javascript):#i', $candidate)) {
+            return null;
+        }
+
+        if (str_starts_with($candidate, '//')) {
+            $candidate = ((string) parse_url($pageUrl, PHP_URL_SCHEME) ?: 'https').':'.$candidate;
+        } elseif (! preg_match('#^https?://#i', $candidate)) {
+            $scheme = (string) parse_url($pageUrl, PHP_URL_SCHEME) ?: 'https';
+            $host = (string) parse_url($pageUrl, PHP_URL_HOST);
+
+            if ($host === '') {
+                return null;
+            }
+
+            $candidate = $scheme.'://'.$host.'/'.ltrim($candidate, '/');
+        }
+
+        if (! filter_var($candidate, FILTER_VALIDATE_URL)) {
+            return null;
+        }
+
+        $scheme = strtolower((string) parse_url($candidate, PHP_URL_SCHEME));
+
+        return in_array($scheme, ['http', 'https'], true) ? $candidate : null;
     }
 
     protected function extractHostFromUrl(string $url): ?string
