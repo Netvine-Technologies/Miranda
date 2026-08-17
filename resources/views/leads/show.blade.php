@@ -41,12 +41,16 @@
         .call-table { width: 100%; border-collapse: collapse; }
         .call-table th, .call-table td { text-align: left; border-bottom: 1px solid #e5e7eb; padding: 9px 7px; font-size: 13px; }
     </style>
+    @include('components.market-local-time-assets')
 </head>
 <body>
 <div class="wrap">
     <div class="card">
         <h1>{{ $lead->name }}</h1>
         <p class="muted">Lead ID #{{ $lead->id }} | Place ID {{ $lead->place_id }}</p>
+        @if ($timeContextRun)
+            <x-market-local-time :location="$timeContextRun->location" :timezone="$batchTimezone" />
+        @endif
         <p>
             <a class="button-link" href="{{ route('leads.index', ['scan_run' => $scanRunId]) }}">Back to Leads</a>
             <a class="button-link" href="{{ route('leads.discovery.index') }}">Lead Discovery</a>

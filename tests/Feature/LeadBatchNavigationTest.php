@@ -32,13 +32,17 @@ class LeadBatchNavigationTest extends TestCase
             ->assertOk()
             ->assertSee('First Studio')
             ->assertSee('Second Studio')
+            ->assertSee('data-timezone="Australia/Sydney"', false)
             ->assertDontSee('Other Batch Studio');
 
         $this->actingAs($user)
             ->get(route('leads.show', ['businessLead' => $second, 'scan_run' => $run->id]))
             ->assertOk()
             ->assertSee('Previous lead')
-            ->assertSee('Next lead');
+            ->assertSee('Next lead')
+            ->assertSee('Sydney')
+            ->assertSee('data-timezone="Australia/Sydney"', false)
+            ->assertSee('Good time to call');
     }
 
     public function test_batch_call_summary_groups_repeat_calls_by_phone_number(): void

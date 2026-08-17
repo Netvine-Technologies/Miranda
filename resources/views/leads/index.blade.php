@@ -92,6 +92,7 @@
         .outcome-no_answer { background: #fef3c7; color: #92400e; }
         .note-copy { max-width: 340px; line-height: 1.45; }
     </style>
+    @include('components.market-local-time-assets')
 </head>
 <body>
 <div class="wrap">
@@ -208,6 +209,7 @@
                             </div>
                         </div>
                         <div class="summary-actions">
+                            <x-market-local-time :location="$selectedScanRun->location" :timezone="$batchTimezone" />
                             <div class="summary-total">
                                 {{ number_format(($batchCallSummary ?? collect())->count()) }}
                                 <span>Unique numbers called</span>

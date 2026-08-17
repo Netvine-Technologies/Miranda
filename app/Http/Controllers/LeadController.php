@@ -8,6 +8,7 @@ use App\Models\LeadScanRun;
 use App\Models\ZoomCallLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
@@ -23,6 +24,7 @@ class LeadController extends Controller
 
         $leads = collect();
         $selectedScanRun = null;
+        $batchTimezone = null;
         $batchCallSummary = collect();
         $monthlyCostRows = collect();
         $pricing = [
@@ -87,6 +89,7 @@ class LeadController extends Controller
                     ->find($scanRunId);
 
                 if ($selectedScanRun) {
+                    $batchTimezone = $this->timezoneForLocation($selectedScanRun->location);
                     $batchCallSummary = ZoomCallLog::query()
                         ->with([
                             'businessLead:id,name',
@@ -172,6 +175,7 @@ class LeadController extends Controller
             'scrapedFilter' => $scrapedFilter,
             'scanRunId' => $scanRunId,
             'selectedScanRun' => $selectedScanRun,
+            'batchTimezone' => $batchTimezone,
             'batchCallSummary' => $batchCallSummary,
             'scanRuns' => $migrationReady ? LeadScanRun::query()->withCount('businessLeads')->orderByDesc('id')->limit(100)->get() : collect(),
             'monthlyCostRows' => $monthlyCostRows,
@@ -189,6 +193,9 @@ class LeadController extends Controller
         ]);
 
         $scanRunId = $request->integer('scan_run') ?: null;
+        $timeContextRun = $scanRunId
+            ? LeadScanRun::query()->find($scanRunId)
+            : $businessLead->scanRuns()->latest('lead_scan_runs.id')->first();
         $scope = BusinessLead::query()
             ->when($scanRunId, fn ($query) => $query->whereHas('scanRuns', fn ($runQuery) => $runQuery->whereKey($scanRunId)));
 
@@ -206,6 +213,8 @@ class LeadController extends Controller
             'scanRunId' => $scanRunId,
             'previousLead' => $previousLead,
             'nextLead' => $nextLead,
+            'timeContextRun' => $timeContextRun,
+            'batchTimezone' => $this->timezoneForLocation($timeContextRun?->location),
         ]);
     }
 
@@ -243,5 +252,30 @@ class LeadController extends Controller
         $digits = preg_replace('/\D+/', '', (string) $phoneNumber) ?? '';
 
         return str_starts_with($digits, '00') ? substr($digits, 2) : $digits;
+    }
+
+    protected function timezoneForLocation(?string $location): ?string
+    {
+        $location = Str::lower(trim((string) $location));
+
+        if ($location === '') {
+            return null;
+        }
+
+        $market = collect((array) config('lead-markets.markets', []))
+            ->first(function (array $market) use ($location): bool {
+                $knownLocation = Str::lower((string) ($market['location'] ?? ''));
+                $city = Str::lower((string) ($market['name'] ?? ''));
+                $aliases = collect((array) ($market['aliases'] ?? []))
+                    ->map(fn ($alias): string => Str::lower(trim((string) $alias)));
+
+                return $location === $knownLocation
+                    || $aliases->contains($location)
+                    || ($city !== '' && (Str::startsWith($location, [$city.',', $city.' ']) || $location === $city));
+            });
+
+        return is_array($market) && filled($market['timezone'] ?? null)
+            ? (string) $market['timezone']
+            : null;
     }
 }
