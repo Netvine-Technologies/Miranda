@@ -130,7 +130,7 @@ class ZoomPhoneService
                 'zoom_call_log_id' => $record['call_history_uuid'] ?? $record['id'] ?? null,
                 'source' => 'api',
                 'direction' => $direction ?: null,
-                'result' => $record['result'] ?? null,
+                'result' => $record['call_result'] ?? $record['result'] ?? null,
                 'duration_seconds' => $duration === null ? null : max(0, (int) $duration),
                 'caller_number' => is_string($callerNumber) ? $callerNumber : null,
                 'callee_number' => is_string($calleeNumber) ? $calleeNumber : null,

@@ -291,8 +291,10 @@ class LeadController extends Controller
      *     timezone: string,
      *     unique_numbers: int,
      *     call_attempts: int,
+     *     answered_numbers: int,
+     *     answered_rate: float,
      *     outcomes_saved: int,
-     *     outcome_counts: \Illuminate\Support\Collection<string, int>
+     *     outcome_breakdown: \Illuminate\Support\Collection<string, array{count: int, all_rate: float, answered_count: int, answered_rate: float}>
      * }
      */
     protected function dailyCallSummary(string $requestedDate): array
@@ -337,6 +339,8 @@ class LeadController extends Controller
 
         $outcomeKeys = collect(LeadNote::OUTCOMES)->push('not_set');
         $outcomeCounts = $outcomeKeys->mapWithKeys(fn (string $outcome): array => [$outcome => 0]);
+        $answeredOutcomeCounts = $outcomeKeys->mapWithKeys(fn (string $outcome): array => [$outcome => 0]);
+        $answeredNumbers = 0;
 
         foreach ($uniqueCalls as $group) {
             /** @var ZoomCallLog $latestCall */
@@ -344,16 +348,45 @@ class LeadController extends Controller
             $outcome = $latestCall->businessLead?->latestNote?->outcome;
             $key = in_array($outcome, LeadNote::OUTCOMES, true) ? $outcome : 'not_set';
             $outcomeCounts[$key] = ((int) $outcomeCounts[$key]) + 1;
+
+            if ($group->contains(fn (ZoomCallLog $call): bool => $this->callWasAnswered($call))) {
+                $answeredNumbers++;
+                $answeredOutcomeCounts[$key] = ((int) $answeredOutcomeCounts[$key]) + 1;
+            }
         }
+
+        $uniqueNumbers = $uniqueCalls->count();
+        $outcomeBreakdown = $outcomeKeys->mapWithKeys(function (string $outcome) use ($outcomeCounts, $answeredOutcomeCounts, $uniqueNumbers, $answeredNumbers): array {
+            $count = (int) $outcomeCounts[$outcome];
+            $answeredCount = (int) $answeredOutcomeCounts[$outcome];
+
+            return [$outcome => [
+                'count' => $count,
+                'all_rate' => $uniqueNumbers > 0 ? round(($count / $uniqueNumbers) * 100, 1) : 0.0,
+                'answered_count' => $answeredCount,
+                'answered_rate' => $answeredNumbers > 0 ? round(($answeredCount / $answeredNumbers) * 100, 1) : 0.0,
+            ]];
+        });
 
         return [
             'date' => $day->toDateString(),
             'date_label' => $day->format('l, d F Y'),
             'timezone' => $timezone,
-            'unique_numbers' => $uniqueCalls->count(),
+            'unique_numbers' => $uniqueNumbers,
             'call_attempts' => $calls->count(),
+            'answered_numbers' => $answeredNumbers,
+            'answered_rate' => $uniqueNumbers > 0 ? round(($answeredNumbers / $uniqueNumbers) * 100, 1) : 0.0,
             'outcomes_saved' => $outcomeCounts->except('not_set')->sum(),
-            'outcome_counts' => $outcomeCounts,
+            'outcome_breakdown' => $outcomeBreakdown,
         ];
+    }
+
+    protected function callWasAnswered(ZoomCallLog $call): bool
+    {
+        return in_array(Str::lower(trim((string) $call->result)), [
+            'connected',
+            'answered',
+            'call connected',
+        ], true);
     }
 }

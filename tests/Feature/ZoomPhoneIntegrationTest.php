@@ -6,6 +6,8 @@ use App\Models\BusinessLead;
 use App\Models\User;
 use App\Services\ZoomPhone\ZoomPhoneService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class ZoomPhoneIntegrationTest extends TestCase
@@ -49,5 +51,38 @@ class ZoomPhoneIntegrationTest extends TestCase
             ->assertOk()
             ->assertSee('Zoom Phone')
             ->assertSee('Miranda call history');
+    }
+
+    public function test_cloud_sync_stores_zooms_call_result_field(): void
+    {
+        config([
+            'zoom-phone.account_id' => 'account-id',
+            'zoom-phone.client_id' => 'client-id',
+            'zoom-phone.client_secret' => 'client-secret',
+        ]);
+        Cache::forget('zoom-phone.access-token');
+        Http::fake([
+            'https://zoom.us/oauth/token' => Http::response(['access_token' => 'test-token']),
+            'https://api.zoom.us/v2/phone/call_history*' => Http::response([
+                'call_history' => [[
+                    'call_id' => 'cloud-call-1',
+                    'call_history_uuid' => 'cloud-history-1',
+                    'direction' => 'outbound',
+                    'caller_did_number' => '+44 20 1234 5678',
+                    'callee_did_number' => '+61 400 000 001',
+                    'call_result' => 'connected',
+                    'duration' => 42,
+                    'start_time' => '2026-08-18T09:00:00Z',
+                    'end_time' => '2026-08-18T09:00:42Z',
+                ]],
+            ]),
+        ]);
+
+        app(ZoomPhoneService::class)->sync(2);
+
+        $this->assertDatabaseHas('zoom_call_logs', [
+            'zoom_call_id' => 'cloud-call-1',
+            'result' => 'connected',
+        ]);
     }
 }

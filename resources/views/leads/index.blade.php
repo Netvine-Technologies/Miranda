@@ -96,7 +96,7 @@
         .daily-summary h2 { margin: 0 0 5px; }
         .date-filter { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
         .date-filter input { min-width: 155px; }
-        .daily-metrics { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)); gap: 12px; margin-top: 18px; }
+        .daily-metrics { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 12px; margin-top: 18px; }
         .daily-metric { padding: 15px; border: 1px solid #e0e7ff; border-radius: 11px; background: rgba(255,255,255,.9); }
         .daily-metric strong { display: block; color: #312e81; font-size: 27px; }
         .daily-metric span { color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
@@ -104,6 +104,8 @@
         .outcome-stat { padding: 11px 12px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; }
         .outcome-stat strong { display: block; font-size: 20px; }
         .outcome-stat span { color: #64748b; font-size: 12px; }
+        .conversion-rate { margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0; color: #475569; font-size: 12px; line-height: 1.5; }
+        .conversion-rate b { color: #1e293b; }
         @media (max-width: 700px) { .daily-metrics { grid-template-columns: 1fr; } }
     </style>
     @include('components.market-local-time-assets')
@@ -251,18 +253,26 @@
                             <span>Total call attempts</span>
                         </div>
                         <div class="daily-metric">
+                            <strong>{{ number_format($dailyCallSummary['answered_numbers']) }}</strong>
+                            <span>Answered numbers · {{ number_format($dailyCallSummary['answered_rate'], 1) }}%</span>
+                        </div>
+                        <div class="daily-metric">
                             <strong>{{ number_format($dailyCallSummary['outcomes_saved']) }}</strong>
                             <span>Contacts with outcomes</span>
                         </div>
                     </div>
 
                     <h3 style="margin:20px 0 0;">Saved outcome breakdown</h3>
-                    <p class="muted" style="margin:5px 0 0;">One outcome per unique called number, using the lead's latest saved outcome.</p>
+                    <p class="muted" style="margin:5px 0 0;">One outcome per unique called number. “All numbers” and “answered numbers” percentages use separate denominators.</p>
                     <div class="outcome-grid">
-                        @foreach ($dailyCallSummary['outcome_counts'] as $outcome => $count)
+                        @foreach ($dailyCallSummary['outcome_breakdown'] as $outcome => $breakdown)
                             <div class="outcome-stat">
-                                <strong>{{ number_format($count) }}</strong>
+                                <strong>{{ number_format($breakdown['count']) }}</strong>
                                 <span>{{ $outcome === 'not_set' ? 'Not set' : ucwords(str_replace('_', ' ', $outcome)) }}</span>
+                                <div class="conversion-rate">
+                                    <div><b>{{ number_format($breakdown['all_rate'], 1) }}%</b> of all numbers</div>
+                                    <div><b>{{ number_format($breakdown['answered_rate'], 1) }}%</b> of answered numbers</div>
+                                </div>
                             </div>
                         @endforeach
                     </div>

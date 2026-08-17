@@ -123,16 +123,17 @@ class LeadBatchNavigationTest extends TestCase
         ]);
 
         foreach ([
-            ['daily-1', $keenLead, '+61 400 000 001', 'outbound', '09:00:00'],
-            ['daily-2', $keenLead, '+61 400 000 001', 'outbound', '10:00:00'],
-            ['daily-3', $noAnswerLead, '+61 400 000 002', 'outbound', '11:00:00'],
-            ['daily-inbound', $keenLead, '+61 400 000 001', 'inbound', '12:00:00'],
-        ] as [$externalKey, $lead, $number, $direction, $time]) {
+            ['daily-1', $keenLead, '+61 400 000 001', 'outbound', 'hang_up', '09:00:00'],
+            ['daily-2', $keenLead, '+61 400 000 001', 'outbound', 'connected', '10:00:00'],
+            ['daily-3', $noAnswerLead, '+61 400 000 002', 'outbound', 'hang_up', '11:00:00'],
+            ['daily-inbound', $keenLead, '+61 400 000 001', 'inbound', 'connected', '12:00:00'],
+        ] as [$externalKey, $lead, $number, $direction, $result, $time]) {
             ZoomCallLog::create([
                 'business_lead_id' => $lead->id,
                 'external_key' => $externalKey,
                 'source' => 'api',
                 'direction' => $direction,
+                'result' => $result,
                 'external_number' => $number,
                 'occurred_at' => '2026-08-18 '.$time,
             ]);
@@ -143,8 +144,10 @@ class LeadBatchNavigationTest extends TestCase
             ->assertOk()
             ->assertSee('Daily Call Activity')
             ->assertSee('Tuesday, 18 August 2026')
-            ->assertSeeInOrder(['2', 'Unique numbers called', '3', 'Total call attempts', '2', 'Contacts with outcomes'])
+            ->assertSeeInOrder(['2', 'Unique numbers called', '3', 'Total call attempts', '1', 'Answered numbers', '50.0%', '2', 'Contacts with outcomes'])
             ->assertSee('Keen')
-            ->assertSee('No Answer');
+            ->assertSee('No Answer')
+            ->assertSee('100.0%')
+            ->assertSee('0.0%');
     }
 }
