@@ -90,7 +90,13 @@ class LeadController extends Controller
                     $batchCallSummary = ZoomCallLog::query()
                         ->with([
                             'businessLead:id,name',
-                            'businessLead.latestNote:id,business_lead_id,outcome,body,created_at',
+                            'businessLead.latestNote' => fn ($query) => $query->select([
+                                'lead_notes.id',
+                                'lead_notes.business_lead_id',
+                                'lead_notes.outcome',
+                                'lead_notes.body',
+                                'lead_notes.created_at',
+                            ]),
                         ])
                         ->whereNotNull('business_lead_id')
                         ->whereNotNull('external_number')
