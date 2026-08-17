@@ -54,6 +54,19 @@
         .completed { background: #dcfce7; color: #166534; }
         .queued { background: #fef3c7; color: #92400e; }
         .actions a { margin-right: 6px; }
+        .batch-summary {
+            margin-top: 18px;
+            padding: 18px;
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            background: #eff6ff;
+        }
+        .batch-summary-header { display: flex; justify-content: space-between; gap: 16px; align-items: start; flex-wrap: wrap; }
+        .batch-summary h2 { margin: 0 0 6px; }
+        .summary-total { font-size: 28px; font-weight: 700; color: #1d4ed8; white-space: nowrap; }
+        .summary-total span { display: block; font-size: 12px; color: #475569; text-transform: uppercase; letter-spacing: .04em; }
+        .call-date { display: block; margin-bottom: 7px; }
+        .call-date:last-child { margin-bottom: 0; }
     </style>
 </head>
 <body>
@@ -160,6 +173,68 @@
                     </div>
                 </div>
             </form>
+
+            @if (($selectedScanRun ?? null) !== null)
+                <section class="batch-summary">
+                    <div class="batch-summary-header">
+                        <div>
+                            <h2>Batch Call Summary</h2>
+                            <div class="muted">
+                                #{{ $selectedScanRun->id }} - {{ $selectedScanRun->query }} - {{ $selectedScanRun->location }}
+                            </div>
+                            <p class="muted" style="margin-bottom:0;">Each phone number appears once. Repeat calls are grouped by date and time.</p>
+                        </div>
+                        <div class="summary-total">
+                            {{ number_format(($batchCallSummary ?? collect())->count()) }}
+                            <span>Unique numbers called</span>
+                        </div>
+                    </div>
+
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Business</th>
+                            <th>Phone number</th>
+                            <th>Call dates</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @forelse (($batchCallSummary ?? collect()) as $row)
+                            <tr>
+                                <td>
+                                    @if ($row['business_lead'])
+                                        <a href="{{ route('leads.show', ['businessLead' => $row['business_lead'], 'scan_run' => $selectedScanRun->id]) }}">
+                                            {{ $row['business_lead']->name }}
+                                        </a>
+                                    @else
+                                        <span class="muted">Unknown lead</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <a href="zoomphonecall:{{ preg_replace('/[^0-9+]/', '', (string) $row['number']) }}">{{ $row['number'] }}</a>
+                                </td>
+                                <td>
+                                    @foreach ($row['calls'] as $call)
+                                        <span class="call-date">
+                                            {{ $call['occurred_at']?->format('d M Y, H:i') ?? 'Time unavailable' }}
+                                            @if ($call['direction'] || $call['result'])
+                                                <span class="muted">
+                                                    — {{ collect([$call['direction'] ? ucfirst($call['direction']) : null, $call['result']])->filter()->join(' · ') }}
+                                                </span>
+                                            @endif
+                                        </span>
+                                    @endforeach
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="3" class="muted">No Zoom calls have been matched to leads in this batch yet.</td>
+                            </tr>
+                        @endforelse
+                        </tbody>
+                    </table>
+                </section>
+            @endif
 
             <table>
                 <thead>

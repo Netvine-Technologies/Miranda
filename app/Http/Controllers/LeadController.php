@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\BusinessLead;
 use App\Models\LeadNote;
 use App\Models\LeadScanRun;
+use App\Models\ZoomCallLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -21,6 +22,8 @@ class LeadController extends Controller
         $scanRunId = $request->integer('scan_run') ?: null;
 
         $leads = collect();
+        $selectedScanRun = null;
+        $batchCallSummary = collect();
         $monthlyCostRows = collect();
         $pricing = [
             'text_search_pro_per_1000' => (float) config('leads.pricing.text_search_pro_per_1000', 32.0),
@@ -78,6 +81,41 @@ class LeadController extends Controller
 
             $leads = $leadsQuery->paginate(20)->withQueryString();
 
+            if ($scanRunId) {
+                $selectedScanRun = LeadScanRun::query()
+                    ->withCount('businessLeads')
+                    ->find($scanRunId);
+
+                if ($selectedScanRun) {
+                    $batchCallSummary = ZoomCallLog::query()
+                        ->with('businessLead:id,name')
+                        ->whereNotNull('business_lead_id')
+                        ->whereNotNull('external_number')
+                        ->whereHas('businessLead.scanRuns', fn ($query) => $query->whereKey($selectedScanRun->id))
+                        ->latest('occurred_at')
+                        ->latest('id')
+                        ->get()
+                        ->groupBy(fn (ZoomCallLog $call): string => $this->normalizePhoneNumber($call->external_number))
+                        ->reject(fn ($calls, string $number): bool => $number === '')
+                        ->map(function ($calls): array {
+                            /** @var ZoomCallLog $latestCall */
+                            $latestCall = $calls->first();
+
+                            return [
+                                'business_lead' => $latestCall->businessLead,
+                                'number' => $latestCall->external_number,
+                                'calls' => $calls->map(fn (ZoomCallLog $call): array => [
+                                    'occurred_at' => $call->occurred_at,
+                                    'direction' => $call->direction,
+                                    'result' => $call->result,
+                                ])->values(),
+                            ];
+                        })
+                        ->sortByDesc(fn (array $row) => $row['calls']->first()['occurred_at']?->getTimestamp() ?? 0)
+                        ->values();
+                }
+            }
+
             $runs = LeadScanRun::query()
                 ->select(['id', 'created_at', 'total_places_found'])
                 ->whereNotNull('created_at')
@@ -122,6 +160,8 @@ class LeadController extends Controller
             'contactFilter' => $contactFilter,
             'scrapedFilter' => $scrapedFilter,
             'scanRunId' => $scanRunId,
+            'selectedScanRun' => $selectedScanRun,
+            'batchCallSummary' => $batchCallSummary,
             'scanRuns' => $migrationReady ? LeadScanRun::query()->withCount('businessLeads')->orderByDesc('id')->limit(100)->get() : collect(),
             'monthlyCostRows' => $monthlyCostRows,
             'pricing' => $pricing,
@@ -185,5 +225,12 @@ class LeadController extends Controller
             && Schema::hasTable('business_leads')
             && Schema::hasTable('lead_emails')
             && Schema::hasTable('lead_phone_numbers');
+    }
+
+    protected function normalizePhoneNumber(?string $phoneNumber): string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phoneNumber) ?? '';
+
+        return str_starts_with($digits, '00') ? substr($digits, 2) : $digits;
     }
 }
