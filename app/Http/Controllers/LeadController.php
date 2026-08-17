@@ -349,7 +349,7 @@ class LeadController extends Controller
             $key = in_array($outcome, LeadNote::OUTCOMES, true) ? $outcome : 'not_set';
             $outcomeCounts[$key] = ((int) $outcomeCounts[$key]) + 1;
 
-            if ($group->contains(fn (ZoomCallLog $call): bool => $this->callWasAnswered($call))) {
+            if (in_array($key, ['contacted', 'keen', 'follow_up', 'not_interested'], true)) {
                 $answeredNumbers++;
                 $answeredOutcomeCounts[$key] = ((int) $answeredOutcomeCounts[$key]) + 1;
             }
@@ -381,12 +381,4 @@ class LeadController extends Controller
         ];
     }
 
-    protected function callWasAnswered(ZoomCallLog $call): bool
-    {
-        return in_array(Str::lower(trim((string) $call->result)), [
-            'connected',
-            'answered',
-            'call connected',
-        ], true);
-    }
 }

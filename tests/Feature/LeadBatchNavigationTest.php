@@ -144,7 +144,7 @@ class LeadBatchNavigationTest extends TestCase
             ->assertOk()
             ->assertSee('Daily Call Activity')
             ->assertSee('Tuesday, 18 August 2026')
-            ->assertSeeInOrder(['2', 'Unique numbers called', '3', 'Total call attempts', '1', 'Answered numbers', '50.0%', '2', 'Contacts with outcomes'])
+            ->assertSeeInOrder(['2', 'Unique numbers called', '3', 'Total call attempts', '1', 'Answered contacts', '50.0%', '2', 'Contacts with outcomes'])
             ->assertSee('Keen')
             ->assertSee('No Answer')
             ->assertSee('100.0%')
