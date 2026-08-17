@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'reporting_timezone' => 'Europe/London',
+
     'calling_hours' => [
         'start' => 9,
         'end' => 17,

@@ -96,4 +96,55 @@ class LeadBatchNavigationTest extends TestCase
 
         $this->assertSame(2, substr_count($response->getContent(), '+61 469 741 282'));
     }
+
+    public function test_all_batches_view_summarizes_daily_calls_and_saved_outcomes(): void
+    {
+        $user = User::factory()->create();
+        $keenLead = BusinessLead::create([
+            'name' => 'Keen Studio',
+            'place_id' => 'daily-keen',
+        ]);
+        $noAnswerLead = BusinessLead::create([
+            'name' => 'No Answer Studio',
+            'place_id' => 'daily-no-answer',
+        ]);
+
+        LeadNote::create([
+            'business_lead_id' => $keenLead->id,
+            'user_id' => $user->id,
+            'outcome' => 'keen',
+            'body' => 'Asked for pricing.',
+        ]);
+        LeadNote::create([
+            'business_lead_id' => $noAnswerLead->id,
+            'user_id' => $user->id,
+            'outcome' => 'no_answer',
+            'body' => '',
+        ]);
+
+        foreach ([
+            ['daily-1', $keenLead, '+61 400 000 001', 'outbound', '09:00:00'],
+            ['daily-2', $keenLead, '+61 400 000 001', 'outbound', '10:00:00'],
+            ['daily-3', $noAnswerLead, '+61 400 000 002', 'outbound', '11:00:00'],
+            ['daily-inbound', $keenLead, '+61 400 000 001', 'inbound', '12:00:00'],
+        ] as [$externalKey, $lead, $number, $direction, $time]) {
+            ZoomCallLog::create([
+                'business_lead_id' => $lead->id,
+                'external_key' => $externalKey,
+                'source' => 'api',
+                'direction' => $direction,
+                'external_number' => $number,
+                'occurred_at' => '2026-08-18 '.$time,
+            ]);
+        }
+
+        $this->actingAs($user)
+            ->get(route('leads.index', ['activity_date' => '2026-08-18']))
+            ->assertOk()
+            ->assertSee('Daily Call Activity')
+            ->assertSee('Tuesday, 18 August 2026')
+            ->assertSeeInOrder(['2', 'Unique numbers called', '3', 'Total call attempts', '2', 'Contacts with outcomes'])
+            ->assertSee('Keen')
+            ->assertSee('No Answer');
+    }
 }

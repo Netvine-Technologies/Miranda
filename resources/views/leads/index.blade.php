@@ -91,6 +91,20 @@
         .outcome-not_interested { background: #fee2e2; color: #991b1b; }
         .outcome-no_answer { background: #fef3c7; color: #92400e; }
         .note-copy { max-width: 340px; line-height: 1.45; }
+        .daily-summary { margin-top: 18px; padding: 20px; border: 1px solid #c7d2fe; border-radius: 14px; background: linear-gradient(135deg, #eef2ff 0%, #fff 65%); }
+        .daily-summary-header { display: flex; justify-content: space-between; gap: 16px; align-items: start; flex-wrap: wrap; }
+        .daily-summary h2 { margin: 0 0 5px; }
+        .date-filter { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
+        .date-filter input { min-width: 155px; }
+        .daily-metrics { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)); gap: 12px; margin-top: 18px; }
+        .daily-metric { padding: 15px; border: 1px solid #e0e7ff; border-radius: 11px; background: rgba(255,255,255,.9); }
+        .daily-metric strong { display: block; color: #312e81; font-size: 27px; }
+        .daily-metric span { color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+        .outcome-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 9px; margin-top: 12px; }
+        .outcome-stat { padding: 11px 12px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; }
+        .outcome-stat strong { display: block; font-size: 20px; }
+        .outcome-stat span { color: #64748b; font-size: 12px; }
+        @media (max-width: 700px) { .daily-metrics { grid-template-columns: 1fr; } }
     </style>
     @include('components.market-local-time-assets')
 </head>
@@ -150,6 +164,9 @@
             <p class="muted">Lead Discovery tables are missing. Run <code>php artisan migrate</code>.</p>
         @else
             <form method="GET" action="{{ route('leads.index') }}">
+                @if (($dailyCallSummary ?? null) !== null)
+                    <input type="hidden" name="activity_date" value="{{ $dailyCallSummary['date'] }}">
+                @endif
                 <div class="row">
                     <div class="field">
                         <label for="lead_search">Search</label>
@@ -198,6 +215,59 @@
                     </div>
                 </div>
             </form>
+
+            @if (($dailyCallSummary ?? null) !== null)
+                <section class="daily-summary">
+                    <div class="daily-summary-header">
+                        <div>
+                            <h2>Daily Call Activity</h2>
+                            <div class="muted">{{ $dailyCallSummary['date_label'] }} | All discovery batches | {{ $dailyCallSummary['timezone'] }}</div>
+                        </div>
+                        <form class="date-filter" method="GET" action="{{ route('leads.index') }}">
+                            @if (filled($leadSearch ?? ''))
+                                <input type="hidden" name="lead_search" value="{{ $leadSearch }}">
+                            @endif
+                            @if (filled($contactFilter ?? ''))
+                                <input type="hidden" name="contact" value="{{ $contactFilter }}">
+                            @endif
+                            @if (filled($scrapedFilter ?? ''))
+                                <input type="hidden" name="scraped" value="{{ $scrapedFilter }}">
+                            @endif
+                            <div>
+                                <label for="activity_date">Activity date</label>
+                                <input id="activity_date" type="date" name="activity_date" value="{{ $dailyCallSummary['date'] }}">
+                            </div>
+                            <button type="submit">View day</button>
+                        </form>
+                    </div>
+
+                    <div class="daily-metrics">
+                        <div class="daily-metric">
+                            <strong>{{ number_format($dailyCallSummary['unique_numbers']) }}</strong>
+                            <span>Unique numbers called</span>
+                        </div>
+                        <div class="daily-metric">
+                            <strong>{{ number_format($dailyCallSummary['call_attempts']) }}</strong>
+                            <span>Total call attempts</span>
+                        </div>
+                        <div class="daily-metric">
+                            <strong>{{ number_format($dailyCallSummary['outcomes_saved']) }}</strong>
+                            <span>Contacts with outcomes</span>
+                        </div>
+                    </div>
+
+                    <h3 style="margin:20px 0 0;">Saved outcome breakdown</h3>
+                    <p class="muted" style="margin:5px 0 0;">One outcome per unique called number, using the lead's latest saved outcome.</p>
+                    <div class="outcome-grid">
+                        @foreach ($dailyCallSummary['outcome_counts'] as $outcome => $count)
+                            <div class="outcome-stat">
+                                <strong>{{ number_format($count) }}</strong>
+                                <span>{{ $outcome === 'not_set' ? 'Not set' : ucwords(str_replace('_', ' ', $outcome)) }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                </section>
+            @endif
 
             @if (($selectedScanRun ?? null) !== null)
                 <details class="batch-summary" open>

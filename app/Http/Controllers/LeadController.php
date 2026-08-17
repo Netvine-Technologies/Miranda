@@ -8,6 +8,7 @@ use App\Models\LeadScanRun;
 use App\Models\ZoomCallLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
@@ -26,6 +27,7 @@ class LeadController extends Controller
         $selectedScanRun = null;
         $batchTimezone = null;
         $batchCallSummary = collect();
+        $dailyCallSummary = null;
         $monthlyCostRows = collect();
         $pricing = [
             'text_search_pro_per_1000' => (float) config('leads.pricing.text_search_pro_per_1000', 32.0),
@@ -128,6 +130,8 @@ class LeadController extends Controller
                         ->sortByDesc(fn (array $row) => $row['calls']->first()['occurred_at']?->getTimestamp() ?? 0)
                         ->values();
                 }
+            } elseif (Schema::hasTable('zoom_call_logs')) {
+                $dailyCallSummary = $this->dailyCallSummary((string) $request->query('activity_date', ''));
             }
 
             $runs = LeadScanRun::query()
@@ -177,6 +181,7 @@ class LeadController extends Controller
             'selectedScanRun' => $selectedScanRun,
             'batchTimezone' => $batchTimezone,
             'batchCallSummary' => $batchCallSummary,
+            'dailyCallSummary' => $dailyCallSummary,
             'scanRuns' => $migrationReady ? LeadScanRun::query()->withCount('businessLeads')->orderByDesc('id')->limit(100)->get() : collect(),
             'monthlyCostRows' => $monthlyCostRows,
             'pricing' => $pricing,
@@ -277,5 +282,78 @@ class LeadController extends Controller
         return is_array($market) && filled($market['timezone'] ?? null)
             ? (string) $market['timezone']
             : null;
+    }
+
+    /**
+     * @return array{
+     *     date: string,
+     *     date_label: string,
+     *     timezone: string,
+     *     unique_numbers: int,
+     *     call_attempts: int,
+     *     outcomes_saved: int,
+     *     outcome_counts: \Illuminate\Support\Collection<string, int>
+     * }
+     */
+    protected function dailyCallSummary(string $requestedDate): array
+    {
+        $timezone = (string) config('lead-markets.reporting_timezone', 'Europe/London');
+        $day = now($timezone)->startOfDay();
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $requestedDate) === 1) {
+            try {
+                $candidate = Carbon::createFromFormat('Y-m-d', $requestedDate, $timezone)->startOfDay();
+
+                if ($candidate->toDateString() === $requestedDate) {
+                    $day = $candidate;
+                }
+            } catch (\Throwable) {
+                // Fall back to today for invalid calendar dates.
+            }
+        }
+
+        $calls = ZoomCallLog::query()
+            ->with([
+                'businessLead:id,name',
+                'businessLead.latestNote' => fn ($query) => $query->select([
+                    'lead_notes.id',
+                    'lead_notes.business_lead_id',
+                    'lead_notes.outcome',
+                    'lead_notes.body',
+                    'lead_notes.created_at',
+                ]),
+            ])
+            ->where('direction', 'outbound')
+            ->whereNotNull('external_number')
+            ->where('occurred_at', '>=', $day->copy()->utc())
+            ->where('occurred_at', '<', $day->copy()->addDay()->utc())
+            ->latest('occurred_at')
+            ->latest('id')
+            ->get();
+
+        $uniqueCalls = $calls
+            ->groupBy(fn (ZoomCallLog $call): string => $this->normalizePhoneNumber($call->external_number))
+            ->reject(fn ($group, string $number): bool => $number === '');
+
+        $outcomeKeys = collect(LeadNote::OUTCOMES)->push('not_set');
+        $outcomeCounts = $outcomeKeys->mapWithKeys(fn (string $outcome): array => [$outcome => 0]);
+
+        foreach ($uniqueCalls as $group) {
+            /** @var ZoomCallLog $latestCall */
+            $latestCall = $group->first();
+            $outcome = $latestCall->businessLead?->latestNote?->outcome;
+            $key = in_array($outcome, LeadNote::OUTCOMES, true) ? $outcome : 'not_set';
+            $outcomeCounts[$key] = ((int) $outcomeCounts[$key]) + 1;
+        }
+
+        return [
+            'date' => $day->toDateString(),
+            'date_label' => $day->format('l, d F Y'),
+            'timezone' => $timezone,
+            'unique_numbers' => $uniqueCalls->count(),
+            'call_attempts' => $calls->count(),
+            'outcomes_saved' => $outcomeCounts->except('not_set')->sum(),
+            'outcome_counts' => $outcomeCounts,
+        ];
     }
 }
