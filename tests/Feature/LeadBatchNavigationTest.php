@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BusinessLead;
+use App\Models\LeadNote;
 use App\Models\LeadScanRun;
 use App\Models\User;
 use App\Models\ZoomCallLog;
@@ -54,6 +55,12 @@ class LeadBatchNavigationTest extends TestCase
             'phone' => '+61 469 741 282',
         ]);
         $run->businessLeads()->attach($lead);
+        LeadNote::create([
+            'business_lead_id' => $lead->id,
+            'user_id' => $user->id,
+            'outcome' => 'follow_up',
+            'body' => 'Owner asked for a call back on Friday morning.',
+        ]);
 
         foreach ([
             ['first-call', '2026-08-16 10:00:00'],
@@ -78,7 +85,10 @@ class LeadBatchNavigationTest extends TestCase
             ->assertSee('1')
             ->assertSee('Unique numbers called')
             ->assertSee('16 Aug 2026, 10:00')
-            ->assertSee('17 Aug 2026, 11:30');
+            ->assertSee('17 Aug 2026, 11:30')
+            ->assertSee('Follow Up')
+            ->assertSee('Owner asked for a call back on Friday morning.')
+            ->assertSee('<details class="batch-summary" open>', false);
 
         $this->assertSame(2, substr_count($response->getContent(), '+61 469 741 282'));
     }

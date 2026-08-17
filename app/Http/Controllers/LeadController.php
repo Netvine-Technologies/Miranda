@@ -88,7 +88,10 @@ class LeadController extends Controller
 
                 if ($selectedScanRun) {
                     $batchCallSummary = ZoomCallLog::query()
-                        ->with('businessLead:id,name')
+                        ->with([
+                            'businessLead:id,name',
+                            'businessLead.latestNote:id,business_lead_id,outcome,body,created_at',
+                        ])
                         ->whereNotNull('business_lead_id')
                         ->whereNotNull('external_number')
                         ->whereHas('businessLead.scanRuns', fn ($query) => $query->whereKey($selectedScanRun->id))
@@ -100,10 +103,12 @@ class LeadController extends Controller
                         ->map(function ($calls): array {
                             /** @var ZoomCallLog $latestCall */
                             $latestCall = $calls->first();
+                            $lead = $latestCall->businessLead;
 
                             return [
-                                'business_lead' => $latestCall->businessLead,
+                                'business_lead' => $lead,
                                 'number' => $latestCall->external_number,
+                                'latest_note' => $lead?->latestNote,
                                 'calls' => $calls->map(fn (ZoomCallLog $call): array => [
                                     'occurred_at' => $call->occurred_at,
                                     'direction' => $call->direction,

@@ -56,17 +56,41 @@
         .actions a { margin-right: 6px; }
         .batch-summary {
             margin-top: 18px;
-            padding: 18px;
-            border: 1px solid #bfdbfe;
-            border-radius: 12px;
-            background: #eff6ff;
+            border: 1px solid #cbd5e1;
+            border-radius: 14px;
+            background: #fff;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .07);
         }
-        .batch-summary-header { display: flex; justify-content: space-between; gap: 16px; align-items: start; flex-wrap: wrap; }
+        .batch-summary-toggle {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+            padding: 18px 20px;
+            cursor: pointer;
+            list-style: none;
+            background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 70%);
+        }
+        .batch-summary-toggle::-webkit-details-marker { display: none; }
         .batch-summary h2 { margin: 0 0 6px; }
-        .summary-total { font-size: 28px; font-weight: 700; color: #1d4ed8; white-space: nowrap; }
-        .summary-total span { display: block; font-size: 12px; color: #475569; text-transform: uppercase; letter-spacing: .04em; }
+        .batch-summary-body { padding: 4px 20px 20px; border-top: 1px solid #dbeafe; }
+        .batch-summary-table { overflow-x: auto; }
+        .summary-actions { display: flex; gap: 10px; align-items: center; }
+        .summary-total { padding: 9px 13px; border-radius: 10px; background: #dbeafe; text-align: center; font-size: 22px; font-weight: 700; color: #1d4ed8; white-space: nowrap; }
+        .summary-total span { display: block; font-size: 10px; color: #475569; text-transform: uppercase; letter-spacing: .05em; }
+        .toggle-label { min-width: 54px; color: #1d4ed8; font-size: 13px; font-weight: 700; }
+        .toggle-label::after { content: 'Show'; }
+        .batch-summary[open] .toggle-label::after { content: 'Hide'; }
         .call-date { display: block; margin-bottom: 7px; }
         .call-date:last-child { margin-bottom: 0; }
+        .outcome-badge { display: inline-block; padding: 4px 9px; border-radius: 999px; background: #e2e8f0; color: #334155; font-size: 12px; font-weight: 700; }
+        .outcome-keen { background: #dcfce7; color: #166534; }
+        .outcome-follow_up { background: #dbeafe; color: #1d4ed8; }
+        .outcome-not_interested { background: #fee2e2; color: #991b1b; }
+        .outcome-no_answer { background: #fef3c7; color: #92400e; }
+        .note-copy { max-width: 340px; line-height: 1.45; }
     </style>
 </head>
 <body>
@@ -175,65 +199,93 @@
             </form>
 
             @if (($selectedScanRun ?? null) !== null)
-                <section class="batch-summary">
-                    <div class="batch-summary-header">
+                <details class="batch-summary" open>
+                    <summary class="batch-summary-toggle">
                         <div>
                             <h2>Batch Call Summary</h2>
                             <div class="muted">
                                 #{{ $selectedScanRun->id }} - {{ $selectedScanRun->query }} - {{ $selectedScanRun->location }}
                             </div>
-                            <p class="muted" style="margin-bottom:0;">Each phone number appears once. Repeat calls are grouped by date and time.</p>
                         </div>
-                        <div class="summary-total">
-                            {{ number_format(($batchCallSummary ?? collect())->count()) }}
-                            <span>Unique numbers called</span>
+                        <div class="summary-actions">
+                            <div class="summary-total">
+                                {{ number_format(($batchCallSummary ?? collect())->count()) }}
+                                <span>Unique numbers called</span>
+                            </div>
+                            <span class="toggle-label" aria-hidden="true"></span>
+                        </div>
+                    </summary>
+
+                    <div class="batch-summary-body">
+                        <p class="muted">Each phone number appears once. Repeat calls are grouped together, with the lead's latest saved outcome and note.</p>
+                        <div class="batch-summary-table">
+                            <table>
+                                <thead>
+                                <tr>
+                                    <th>Contact</th>
+                                    <th>Call history</th>
+                                    <th>Saved outcome</th>
+                                    <th>Latest note</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @forelse (($batchCallSummary ?? collect()) as $row)
+                                    @php($latestNote = $row['latest_note'])
+                                    <tr>
+                                        <td>
+                                            @if ($row['business_lead'])
+                                                <a href="{{ route('leads.show', ['businessLead' => $row['business_lead'], 'scan_run' => $selectedScanRun->id]) }}">
+                                                    <strong>{{ $row['business_lead']->name }}</strong>
+                                                </a>
+                                            @else
+                                                <span class="muted">Unknown lead</span>
+                                            @endif
+                                            <div style="margin-top:6px;">
+                                                <a href="zoomphonecall:{{ preg_replace('/[^0-9+]/', '', (string) $row['number']) }}">{{ $row['number'] }}</a>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            @foreach ($row['calls'] as $call)
+                                                <span class="call-date">
+                                                    {{ $call['occurred_at']?->format('d M Y, H:i') ?? 'Time unavailable' }}
+                                                    @if ($call['direction'] || $call['result'])
+                                                        <span class="muted">
+                                                            — {{ collect([$call['direction'] ? ucfirst($call['direction']) : null, $call['result']])->filter()->join(' · ') }}
+                                                        </span>
+                                                    @endif
+                                                </span>
+                                            @endforeach
+                                        </td>
+                                        <td>
+                                            @if ($latestNote)
+                                                <span class="outcome-badge outcome-{{ $latestNote->outcome }}">
+                                                    {{ ucwords(str_replace('_', ' ', $latestNote->outcome)) }}
+                                                </span>
+                                            @else
+                                                <span class="muted">Not set</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if ($latestNote && filled($latestNote->body))
+                                                <div class="note-copy">{{ \Illuminate\Support\Str::limit($latestNote->body, 180) }}</div>
+                                                <div class="muted" style="margin-top:5px;">Saved {{ $latestNote->created_at?->format('d M Y, H:i') }}</div>
+                                            @elseif ($latestNote)
+                                                <span class="muted">Outcome saved without a note.</span>
+                                            @else
+                                                <span class="muted">No saved note.</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="muted">No Zoom calls have been matched to leads in this batch yet.</td>
+                                    </tr>
+                                @endforelse
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-
-                    <table>
-                        <thead>
-                        <tr>
-                            <th>Business</th>
-                            <th>Phone number</th>
-                            <th>Call dates</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @forelse (($batchCallSummary ?? collect()) as $row)
-                            <tr>
-                                <td>
-                                    @if ($row['business_lead'])
-                                        <a href="{{ route('leads.show', ['businessLead' => $row['business_lead'], 'scan_run' => $selectedScanRun->id]) }}">
-                                            {{ $row['business_lead']->name }}
-                                        </a>
-                                    @else
-                                        <span class="muted">Unknown lead</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    <a href="zoomphonecall:{{ preg_replace('/[^0-9+]/', '', (string) $row['number']) }}">{{ $row['number'] }}</a>
-                                </td>
-                                <td>
-                                    @foreach ($row['calls'] as $call)
-                                        <span class="call-date">
-                                            {{ $call['occurred_at']?->format('d M Y, H:i') ?? 'Time unavailable' }}
-                                            @if ($call['direction'] || $call['result'])
-                                                <span class="muted">
-                                                    — {{ collect([$call['direction'] ? ucfirst($call['direction']) : null, $call['result']])->filter()->join(' · ') }}
-                                                </span>
-                                            @endif
-                                        </span>
-                                    @endforeach
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="3" class="muted">No Zoom calls have been matched to leads in this batch yet.</td>
-                            </tr>
-                        @endforelse
-                        </tbody>
-                    </table>
-                </section>
+                </details>
             @endif
 
             <table>
