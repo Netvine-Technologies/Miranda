@@ -150,7 +150,7 @@
                 <div class="contact-number">
                     <strong>{{ $phone['label'] }}</strong>
                     <span class="source-badge">{{ $phone['source'] }}</span><br>
-                    <a class="phone-link" href="zoomphonecall:{{ preg_replace('/[^0-9+]/', '', (string) $phone['number']) }}">{{ $phone['number'] }}</a>
+                    <a class="phone-link" href="zoomphonecall://{{ preg_replace('/[^0-9+]/', '', (string) $phone['number']) }}">{{ $phone['number'] }}</a>
                     <a class="source-badge" href="{{ route('zoom-phone.index', ['number' => preg_replace('/[^0-9+]/', '', (string) $phone['number'])]) }}">Open dialler</a>
                 </div>
             @endforeach
@@ -160,7 +160,7 @@
             <h3 style="margin:22px 0 10px;">Additional numbers found</h3>
             @foreach ($additionalNumbers as $phone)
                 <div class="contact-number">
-                    <a class="phone-link" href="zoomphonecall:{{ preg_replace('/[^0-9+]/', '', (string) $phone->phone_number) }}">{{ $phone->phone_number }}</a>
+                    <a class="phone-link" href="zoomphonecall://{{ preg_replace('/[^0-9+]/', '', (string) $phone->phone_number) }}">{{ $phone->phone_number }}</a>
                     <a class="source-badge" href="{{ route('zoom-phone.index', ['number' => preg_replace('/[^0-9+]/', '', (string) $phone->phone_number)]) }}">Open dialler</a>
                     <span class="source-badge">Crawled</span>
                     @if ($phone->source_page)
