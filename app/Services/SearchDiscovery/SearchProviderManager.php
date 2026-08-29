@@ -4,6 +4,7 @@ namespace App\Services\SearchDiscovery;
 
 use App\Contracts\SearchProvider;
 use App\Services\SearchDiscovery\Providers\HttpSearchProvider;
+use App\Services\SearchDiscovery\Providers\BraveSearchProvider;
 use App\Services\SearchDiscovery\Providers\NullSearchProvider;
 use App\Services\SearchDiscovery\Providers\SerpApiSearchProvider;
 use InvalidArgumentException;
@@ -19,6 +20,7 @@ class SearchProviderManager
         return match ($driver) {
             'null' => new NullSearchProvider(),
             'serpapi' => new SerpApiSearchProvider($config),
+            'brave' => new BraveSearchProvider($config),
             'http' => new HttpSearchProvider($config),
             default => throw new InvalidArgumentException("Unsupported search discovery provider [{$provider}]."),
         };
@@ -44,6 +46,13 @@ class SearchProviderManager
                 'message' => $resolved->configured()
                     ? 'SerpAPI is configured.'
                     : 'SerpAPI is not configured. Add SEARCH_DISCOVERY_SERPAPI_API_KEY to .env.',
+            ],
+            'brave' => [
+                'provider' => 'brave',
+                'configured' => $resolved->configured(),
+                'message' => $resolved->configured()
+                    ? 'Brave Search is configured.'
+                    : 'Brave Search is not configured. Add SEARCH_DISCOVERY_BRAVE_API_KEY to .env.',
             ],
             'http' => [
                 'provider' => 'http',

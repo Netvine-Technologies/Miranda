@@ -19,6 +19,7 @@ class LeadScanRun extends Model
     protected $fillable = [
         'query',
         'location',
+        'discovery_source',
         'status',
         'total_places_found',
         'details_processed',

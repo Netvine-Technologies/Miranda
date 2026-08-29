@@ -178,7 +178,7 @@
 
         <div class="card">
             <h1>Lead Discovery</h1>
-            <p class="muted">Queue-based Google Places scan + website crawl for emails and UK phone numbers.</p>
+            <p class="muted">Choose Google Maps for place data or fast Web Search for official business websites. Both feed the same phone, email and booking-link crawler.</p>
             <p>
                 <a class="button-link" href="{{ route('dashboard') }}">Back to Dashboard</a>
                 <a class="button-link" href="{{ route('leads.index') }}" style="background:#334155;">View Leads</a>
@@ -200,6 +200,12 @@
                 </div>
             @endif
 
+            @if (!($webSearchStatus['configured'] ?? false))
+                <div class="status" style="background:#fff7ed;border-color:#fed7aa;color:#9a3412;">
+                    Fast Web Search needs a {{ ucfirst((string) ($webSearchStatus['provider'] ?? 'search')) }} API key. Google Maps remains available until it is configured.
+                </div>
+            @endif
+
             <form method="POST" action="{{ route('leads.discovery.start') }}">
                 @csrf
                 <div class="row">
@@ -210,6 +216,17 @@
                     <div class="field">
                         <label for="location">Location</label>
                         <input id="location" name="location" value="{{ old('location', 'London') }}" required {{ !($migrationReady ?? false) ? 'disabled' : '' }}>
+                    </div>
+                    <div>
+                        <label for="discovery_source">Source</label>
+                        <select id="discovery_source" name="discovery_source" {{ !($migrationReady ?? false) ? 'disabled' : '' }}>
+                            <option value="web_search" {{ old('discovery_source', $defaultDiscoverySource ?? 'google_places') === 'web_search' ? 'selected' : '' }} {{ !($webSearchStatus['configured'] ?? false) ? 'disabled' : '' }}>
+                                Web Search (fast)
+                            </option>
+                            <option value="google_places" {{ old('discovery_source', $defaultDiscoverySource ?? 'google_places') === 'google_places' ? 'selected' : '' }}>
+                                Google Maps
+                            </option>
+                        </select>
                     </div>
                     <div>
                         <label for="depth_mode">Depth</label>
@@ -244,7 +261,7 @@
                 <tbody id="runs-body">
                     @foreach ($recentRuns as $run)
                         <tr>
-                            <td>#{{ $run->id }}<br><span class="muted">{{ $run->query }} | {{ $run->location }}</span></td>
+                            <td>#{{ $run->id }}<br><span class="muted">{{ $run->query }} | {{ $run->location }}</span><br><span class="chip">{{ ($run->discovery_source ?? 'google_places') === 'web_search' ? 'Web Search' : 'Google Maps' }}</span></td>
                             <td><span class="badge {{ $run->status }}">{{ $run->status }}</span></td>
                             <td>
                                 @php
@@ -258,7 +275,7 @@
                                 </div>
                             </td>
                             <td class="muted">
-                                Places: {{ $run->total_places_found }}<br>
+                                Results: {{ $run->total_places_found }}<br>
                                 Details: {{ $run->details_processed }}<br>
                                 Crawled: {{ $run->websites_crawled }}/{{ $run->websites_queued }}<br>
                                 Emails: {{ $run->emails_found }} | Phones: {{ $run->phone_numbers_found }}
@@ -373,7 +390,7 @@
 
                 return `
                     <tr>
-                        <td>#${run.id}<br><span class="muted">${query} | ${location}</span></td>
+                        <td>#${run.id}<br><span class="muted">${query} | ${location}</span><br><span class="chip">${run.discovery_source === 'web_search' ? 'Web Search' : 'Google Maps'}</span></td>
                         <td>${renderBadge(run.status)}</td>
                         <td>
                             ${progress}%
@@ -382,7 +399,7 @@
                             </div>
                         </td>
                         <td class="muted">
-                            Places: ${run.total_places_found}<br>
+                            Results: ${run.total_places_found}<br>
                             Details: ${run.details_processed}<br>
                             Crawled: ${run.websites_crawled}/${run.websites_queued}<br>
                             Emails: ${run.emails_found} | Phones: ${run.phone_numbers_found}

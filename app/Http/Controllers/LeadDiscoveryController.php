@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\LeadDiscovery\ScrapeGooglePlaces;
+use App\Jobs\LeadDiscovery\ScrapeWebSearch;
 use App\Models\LeadScanRun;
+use App\Services\SearchDiscovery\SearchProviderManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,12 +22,16 @@ class LeadDiscoveryController extends Controller
             : collect();
         $depthModes = array_keys((array) config('leads.scan_depth_modes', []));
         $defaultDepthMode = (string) config('leads.scan_depth_default', 'standard');
+        $webSearchProvider = (string) config('leads.web_search_provider', 'brave');
+        $webSearchStatus = app(SearchProviderManager::class)->status($webSearchProvider);
 
         return view('leads.discovery', [
             'recentRuns' => $recentRuns,
             'migrationReady' => $migrationReady,
             'depthModes' => $depthModes,
             'defaultDepthMode' => $defaultDepthMode,
+            'webSearchStatus' => $webSearchStatus,
+            'defaultDiscoverySource' => ($webSearchStatus['configured'] ?? false) ? 'web_search' : 'google_places',
             // Time is evaluated in the browser so the overview remains current
             // while the user keeps the page open.
             'englishSpeakingMarkets' => array_values((array) config('lead-markets.markets', [])),
@@ -44,20 +50,45 @@ class LeadDiscoveryController extends Controller
             'query' => ['required', 'string', 'max:255'],
             'location' => ['required', 'string', 'max:255'],
             'depth_mode' => ['nullable', 'string', 'in:quick,standard,deep,max'],
+            'discovery_source' => ['nullable', 'string', 'in:google_places,web_search'],
         ]);
         $depthMode = (string) ($data['depth_mode'] ?? config('leads.scan_depth_default', 'standard'));
+        $discoverySource = (string) ($data['discovery_source'] ?? 'google_places');
+
+        if ($discoverySource === 'web_search') {
+            $provider = (string) config('leads.web_search_provider', 'brave');
+            $providerStatus = app(SearchProviderManager::class)->status($provider);
+
+            if (! ($providerStatus['configured'] ?? false)) {
+                return redirect()
+                    ->route('leads.discovery.index')
+                    ->withInput()
+                    ->withErrors(['web_search' => $providerStatus['message'] ?? 'Web Search is not configured.']);
+            }
+        }
 
         $scanRun = LeadScanRun::create([
             'query' => trim($data['query']),
             'location' => trim($data['location']),
+            'discovery_source' => $discoverySource,
             'status' => LeadScanRun::STATUS_QUEUED,
         ]);
 
-        ScrapeGooglePlaces::dispatch($scanRun->query, $scanRun->location, $scanRun->id, $depthMode);
+        if ($discoverySource === 'web_search') {
+            ScrapeWebSearch::dispatch(
+                $scanRun->query,
+                $scanRun->location,
+                $scanRun->id,
+                $depthMode,
+                (string) config('leads.web_search_provider', 'brave'),
+            );
+        } else {
+            ScrapeGooglePlaces::dispatch($scanRun->query, $scanRun->location, $scanRun->id, $depthMode);
+        }
 
         return redirect()
             ->route('leads.discovery.index')
-            ->with('status', "Lead scan #{$scanRun->id} queued ({$depthMode} depth).");
+            ->with('status', "Lead scan #{$scanRun->id} queued via ".str_replace('_', ' ', $discoverySource)." ({$depthMode} depth).");
     }
 
     public function status(): JsonResponse
@@ -83,6 +114,7 @@ class LeadDiscoveryController extends Controller
                     'id' => $run->id,
                     'query' => $run->query,
                     'location' => $run->location,
+                    'discovery_source' => $run->discovery_source ?: 'google_places',
                     'status' => $run->status,
                     'total_places_found' => $run->total_places_found,
                     'details_processed' => $run->details_processed,

@@ -134,11 +134,15 @@ class LeadController extends Controller
                 $dailyCallSummary = $this->dailyCallSummary((string) $request->query('activity_date', ''));
             }
 
-            $runs = LeadScanRun::query()
+            $runsQuery = LeadScanRun::query()
                 ->select(['id', 'created_at', 'total_places_found'])
-                ->whereNotNull('created_at')
-                ->orderByDesc('id')
-                ->get();
+                ->whereNotNull('created_at');
+
+            if (Schema::hasColumn('lead_scan_runs', 'discovery_source')) {
+                $runsQuery->where('discovery_source', 'google_places');
+            }
+
+            $runs = $runsQuery->orderByDesc('id')->get();
 
             $monthlyCostRows = $runs
                 ->groupBy(function (LeadScanRun $run): string {

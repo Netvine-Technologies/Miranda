@@ -105,6 +105,15 @@ return [
             'safe' => env('SEARCH_DISCOVERY_SERPAPI_SAFE', 'off'),
             'timeout' => (int) env('SEARCH_DISCOVERY_SERPAPI_TIMEOUT', 20),
         ],
+        'brave' => [
+            'driver' => 'brave',
+            'base_url' => env('SEARCH_DISCOVERY_BRAVE_BASE_URL', 'https://api.search.brave.com/res/v1/web/search'),
+            'api_key' => env('SEARCH_DISCOVERY_BRAVE_API_KEY'),
+            'country' => env('SEARCH_DISCOVERY_BRAVE_COUNTRY', 'ALL'),
+            'search_lang' => env('SEARCH_DISCOVERY_BRAVE_SEARCH_LANG', 'en'),
+            'safe_search' => env('SEARCH_DISCOVERY_BRAVE_SAFE_SEARCH', 'moderate'),
+            'timeout' => (int) env('SEARCH_DISCOVERY_BRAVE_TIMEOUT', 15),
+        ],
         'http' => [
             'driver' => 'http',
             'base_url' => env('SEARCH_DISCOVERY_HTTP_BASE_URL'),
