@@ -113,6 +113,8 @@ return [
             'search_lang' => env('SEARCH_DISCOVERY_BRAVE_SEARCH_LANG', 'en'),
             'safe_search' => env('SEARCH_DISCOVERY_BRAVE_SAFE_SEARCH', 'moderate'),
             'timeout' => (int) env('SEARCH_DISCOVERY_BRAVE_TIMEOUT', 15),
+            'monthly_request_limit' => (int) env('SEARCH_DISCOVERY_BRAVE_MONTHLY_REQUEST_LIMIT', 1000),
+            'quota_cache_store' => env('SEARCH_DISCOVERY_BRAVE_QUOTA_CACHE_STORE', 'database'),
         ],
         'http' => [
             'driver' => 'http',

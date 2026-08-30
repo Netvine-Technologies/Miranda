@@ -5,6 +5,7 @@ namespace App\Services\SearchDiscovery\Providers;
 use App\Contracts\SearchProvider;
 use App\Data\SearchResult;
 use App\Exceptions\SearchProviderException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 class BraveSearchProvider implements SearchProvider
@@ -22,6 +23,8 @@ class BraveSearchProvider implements SearchProvider
         if ($baseUrl === '' || $apiKey === '') {
             throw new SearchProviderException('Brave Search is missing SEARCH_DISCOVERY_BRAVE_API_KEY or its base URL.');
         }
+
+        $this->consumeMonthlyRequestQuota();
 
         $response = Http::timeout(max((int) ($this->config['timeout'] ?? 15), 1))
             ->acceptJson()
@@ -81,5 +84,31 @@ class BraveSearchProvider implements SearchProvider
     public function configured(): bool
     {
         return trim((string) ($this->config['api_key'] ?? '')) !== '';
+    }
+
+    protected function consumeMonthlyRequestQuota(): void
+    {
+        $limit = max((int) ($this->config['monthly_request_limit'] ?? 1000), 0);
+
+        if ($limit === 0) {
+            throw new SearchProviderException('Brave Search is disabled because its monthly request limit is zero.');
+        }
+
+        $key = 'search-discovery:brave:'.now()->format('Y-m');
+        $expiresAt = now()->addDays(62);
+        $cache = Cache::store((string) ($this->config['quota_cache_store'] ?? 'database'));
+
+        // Count attempts before the HTTP call. Failed or retried requests still
+        // consume provider usage and must remain inside the billing guard.
+        $cache->add($key, 0, $expiresAt);
+        $attempts = (int) $cache->increment($key);
+
+        if ($attempts > $limit) {
+            $cache->decrement($key);
+
+            throw new SearchProviderException(
+                "Brave Search monthly safety limit of {$limit} requests has been reached. No paid request was sent."
+            );
+        }
     }
 }
