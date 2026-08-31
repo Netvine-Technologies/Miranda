@@ -9,6 +9,7 @@
 
 ## Project Guide
 
+- Mandatory production safeguards: [`AGENTS.md`](AGENTS.md)
 - Shopify scraper roadmap: `docs/SHOPIFY_SCRAPER_GUIDE.md`
 
 ## About Laravel

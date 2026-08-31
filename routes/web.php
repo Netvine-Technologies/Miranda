@@ -2,7 +2,9 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Validation\Rules\Password;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadDiscoveryController;
 use App\Http\Controllers\SearchDiscoveryController;
@@ -10,10 +12,39 @@ use App\Http\Controllers\SeoProductController;
 use App\Http\Controllers\WebStoreController;
 use App\Http\Controllers\WebProductController;
 use App\Http\Controllers\ZoomPhoneController;
+use App\Models\User;
 
 Route::get('/', function () {
     return redirect('/login');
 });
+
+Route::match(['get', 'post'], '/setup-owner', function (Request $request) {
+    abort_if(User::query()->exists(), 404);
+
+    if ($request->isMethod('get')) {
+        return view('auth.setup-owner', [
+            'name' => 'Shane Johnson',
+            'email' => 'info@netvinetechnologies.co.uk',
+        ]);
+    }
+
+    $data = $request->validate([
+        'name' => ['required', 'string', 'max:255'],
+        'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+        'password' => ['required', 'confirmed', Password::min(12)],
+    ]);
+
+    $user = User::query()->create([
+        'name' => $data['name'],
+        'email' => $data['email'],
+        'password' => Hash::make($data['password']),
+    ]);
+
+    Auth::login($user);
+    $request->session()->regenerate();
+
+    return redirect()->route('dashboard');
+})->middleware(['guest', 'signed'])->name('setup.owner');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', function () {
