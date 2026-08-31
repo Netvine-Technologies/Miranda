@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class LeadDiscoveryController extends Controller
@@ -32,6 +33,7 @@ class LeadDiscoveryController extends Controller
             'defaultDepthMode' => $defaultDepthMode,
             'webSearchStatus' => $webSearchStatus,
             'defaultDiscoverySource' => ($webSearchStatus['configured'] ?? false) ? 'web_search' : 'google_places',
+            'intentTagOptions' => (array) config('leads.intent_tags', []),
             // Time is evaluated in the browser so the overview remains current
             // while the user keeps the page open.
             'englishSpeakingMarkets' => array_values((array) config('lead-markets.markets', [])),
@@ -51,6 +53,8 @@ class LeadDiscoveryController extends Controller
             'location' => ['required', 'string', 'max:255'],
             'depth_mode' => ['nullable', 'string', 'in:quick,standard,deep,max'],
             'discovery_source' => ['nullable', 'string', 'in:google_places,web_search'],
+            'intent_tags' => ['nullable', 'array'],
+            'intent_tags.*' => ['string', Rule::in(array_keys((array) config('leads.intent_tags', [])))],
         ]);
         $depthMode = (string) ($data['depth_mode'] ?? config('leads.scan_depth_default', 'standard'));
         $discoverySource = (string) ($data['discovery_source'] ?? 'google_places');
@@ -71,6 +75,7 @@ class LeadDiscoveryController extends Controller
             'query' => trim($data['query']),
             'location' => trim($data['location']),
             'discovery_source' => $discoverySource,
+            'intent_tags' => array_values(array_unique((array) ($data['intent_tags'] ?? []))),
             'status' => LeadScanRun::STATUS_QUEUED,
         ]);
 
@@ -115,6 +120,7 @@ class LeadDiscoveryController extends Controller
                     'query' => $run->query,
                     'location' => $run->location,
                     'discovery_source' => $run->discovery_source ?: 'google_places',
+                    'intent_tags' => $run->intent_tags ?? [],
                     'status' => $run->status,
                     'total_places_found' => $run->total_places_found,
                     'details_processed' => $run->details_processed,

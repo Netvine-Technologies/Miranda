@@ -97,6 +97,29 @@ class LeadBatchNavigationTest extends TestCase
         $this->assertSame(2, substr_count($response->getContent(), '+61 469 741 282'));
     }
 
+    public function test_leads_can_be_filtered_by_multi_value_intent_tags(): void
+    {
+        $user = User::factory()->create();
+        BusinessLead::create([
+            'name' => 'Dual Intent Clinic',
+            'place_id' => 'dual-intent',
+            'intent_tags' => ['booking_system', 'ai_receptionist'],
+        ]);
+        BusinessLead::create([
+            'name' => 'Reception Only Plumber',
+            'place_id' => 'reception-only',
+            'intent_tags' => ['ai_receptionist'],
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('leads.index', ['intent' => 'booking_system']))
+            ->assertOk()
+            ->assertSee('Dual Intent Clinic')
+            ->assertSee('Booking System')
+            ->assertSee('AI Receptionist')
+            ->assertDontSee('Reception Only Plumber');
+    }
+
     public function test_all_batches_view_summarizes_daily_calls_and_saved_outcomes(): void
     {
         $user = User::factory()->create();

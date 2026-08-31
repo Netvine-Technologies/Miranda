@@ -36,6 +36,7 @@
         .phone-link { color: #1d4ed8; font-family: Consolas, Monaco, 'Courier New', monospace; font-size: 16px; font-weight: 700; text-decoration: none; }
         .phone-link:hover { text-decoration: underline; }
         .source-badge { display: inline-block; margin-left: 6px; padding: 2px 6px; border-radius: 999px; background: #f3f4f6; color: #4b5563; font-size: 11px; }
+        .intent-chip { display:inline-block; margin:4px 5px 0 0; padding:4px 8px; border-radius:999px; background:#dbeafe; color:#1d4ed8; font-size:12px; font-weight:700; }
         .lead-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; }
         .lead-nav .button-link.disabled { background: #94a3b8; cursor: default; }
         .call-table { width: 100%; border-collapse: collapse; }
@@ -48,6 +49,9 @@
     <div class="card">
         <h1>{{ $lead->name }}</h1>
         <p class="muted">Lead ID #{{ $lead->id }} | Place ID {{ $lead->place_id }}</p>
+        @foreach ((array) $lead->intent_tags as $intent)
+            <span class="intent-chip">{{ config('leads.intent_tags.'.$intent, ucwords(str_replace('_', ' ', $intent))) }}</span>
+        @endforeach
         @if ($timeContextRun)
             <x-market-local-time :location="$timeContextRun->location" :timezone="$batchTimezone" />
         @endif

@@ -43,6 +43,7 @@
             margin-right: 4px;
             margin-top: 4px;
         }
+        .intent-chip { background:#dbeafe; color:#1d4ed8; }
         .badge {
             display: inline-block;
             padding: 3px 8px;
@@ -189,6 +190,15 @@
                             <option value="pending" {{ ($scrapedFilter ?? '') === 'pending' ? 'selected' : '' }}>Pending</option>
                         </select>
                     </div>
+                    <div>
+                        <label for="intent">Lead Intent</label>
+                        <select id="intent" name="intent">
+                            <option value="">All</option>
+                            @foreach (($intentTagOptions ?? []) as $intentValue => $intentLabel)
+                                <option value="{{ $intentValue }}" {{ ($intentFilter ?? '') === $intentValue ? 'selected' : '' }}>{{ $intentLabel }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                     <div class="field">
                         <label for="scan_run">Discovery Batch</label>
                         <select id="scan_run" name="scan_run">
@@ -202,6 +212,9 @@
                                         {{ $run->total_places_found }} discovered (not linked)
                                     @else
                                         0 leads
+                                    @endif
+                                    @if (count((array) $run->intent_tags) > 0)
+                                        - {{ collect((array) $run->intent_tags)->map(fn ($intent) => $intentTagOptions[$intent] ?? ucwords(str_replace('_', ' ', $intent)))->join(' + ') }}
                                     @endif
                                     - {{ optional($run->created_at)->format('d M Y H:i') }}
                                 </option>
@@ -234,6 +247,9 @@
                             @endif
                             @if (filled($scrapedFilter ?? ''))
                                 <input type="hidden" name="scraped" value="{{ $scrapedFilter }}">
+                            @endif
+                            @if (filled($intentFilter ?? ''))
+                                <input type="hidden" name="intent" value="{{ $intentFilter }}">
                             @endif
                             <div>
                                 <label for="activity_date">Activity date</label>
@@ -286,6 +302,9 @@
                             <h2>Batch Call Summary</h2>
                             <div class="muted">
                                 #{{ $selectedScanRun->id }} - {{ $selectedScanRun->query }} - {{ $selectedScanRun->location }}
+                                @foreach ((array) $selectedScanRun->intent_tags as $intent)
+                                    <span class="chip intent-chip">{{ $intentTagOptions[$intent] ?? ucwords(str_replace('_', ' ', $intent)) }}</span>
+                                @endforeach
                             </div>
                         </div>
                         <div class="summary-actions">
@@ -387,6 +406,9 @@
                             <div><strong>{{ $lead->name }}</strong></div>
                             <div class="muted">{{ $lead->city ?: '-' }}</div>
                             <div class="muted">{{ $lead->address ?: '-' }}</div>
+                            @foreach ((array) $lead->intent_tags as $intent)
+                                <span class="chip intent-chip">{{ $intentTagOptions[$intent] ?? ucwords(str_replace('_', ' ', $intent)) }}</span>
+                            @endforeach
                             @if ($lead->website)
                                 <div><a href="{{ $lead->website }}" target="_blank" rel="noopener">{{ $lead->website }}</a></div>
                             @endif

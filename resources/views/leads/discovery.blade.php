@@ -128,6 +128,10 @@
             margin-right: 4px;
             margin-top: 4px;
         }
+        .intent-options { display:flex; gap:10px; flex-wrap:wrap; padding:9px 0; }
+        .intent-option { display:flex; align-items:center; gap:6px; margin:0; padding:8px 10px; border:1px solid #cbd5e1; border-radius:9px; background:#f8fafc; color:#1e293b; }
+        .intent-option input { width:auto; margin:0; }
+        .intent-chip { background:#dbeafe; color:#1d4ed8; }
         .pagination-wrap {
             margin-top: 14px;
         }
@@ -238,6 +242,17 @@
                             @endforeach
                         </select>
                     </div>
+                    <div class="field">
+                        <label>Lead intent</label>
+                        <div class="intent-options">
+                            @foreach (($intentTagOptions ?? []) as $intentValue => $intentLabel)
+                                <label class="intent-option">
+                                    <input type="checkbox" name="intent_tags[]" value="{{ $intentValue }}" {{ in_array($intentValue, old('intent_tags', []), true) ? 'checked' : '' }}>
+                                    {{ $intentLabel }}
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
                     <div>
                         <button type="submit" {{ !($migrationReady ?? false) ? 'disabled' : '' }}>Start Scan</button>
                     </div>
@@ -261,7 +276,7 @@
                 <tbody id="runs-body">
                     @foreach ($recentRuns as $run)
                         <tr>
-                            <td>#{{ $run->id }}<br><span class="muted">{{ $run->query }} | {{ $run->location }}</span><br><span class="chip">{{ ($run->discovery_source ?? 'google_places') === 'web_search' ? 'Web Search' : 'Google Maps' }}</span></td>
+                            <td>#{{ $run->id }}<br><span class="muted">{{ $run->query }} | {{ $run->location }}</span><br><span class="chip">{{ ($run->discovery_source ?? 'google_places') === 'web_search' ? 'Web Search' : 'Google Maps' }}</span>@foreach ((array) $run->intent_tags as $intent)<span class="chip intent-chip">{{ $intentTagOptions[$intent] ?? ucwords(str_replace('_', ' ', $intent)) }}</span>@endforeach</td>
                             <td><span class="badge {{ $run->status }}">{{ $run->status }}</span></td>
                             <td>
                                 @php
@@ -294,6 +309,7 @@
         const runsBody = document.getElementById('runs-body');
         const migrationReady = @json((bool) ($migrationReady ?? false));
         const englishSpeakingMarkets = @json($englishSpeakingMarkets ?? []);
+        const intentTagLabels = @json($intentTagOptions ?? []);
         const marketGrid = document.getElementById('market-grid');
         const marketCount = document.getElementById('market-count');
         const marketEmpty = document.getElementById('market-empty');
@@ -375,6 +391,13 @@
             return `<span class="badge ${safe}">${safe}</span>`;
         }
 
+        function renderIntentTags(tags) {
+            return (Array.isArray(tags) ? tags : []).map((tag) => {
+                const label = intentTagLabels[tag] || String(tag).replace(/_/g, ' ');
+                return `<span class="chip intent-chip">${escapeHtml(label)}</span>`;
+            }).join('');
+        }
+
         function renderRows(runs) {
             if (!Array.isArray(runs) || runs.length === 0) {
                 runsBody.innerHTML = '<tr><td colspan="5" class="muted">No scan runs yet.</td></tr>';
@@ -390,7 +413,7 @@
 
                 return `
                     <tr>
-                        <td>#${run.id}<br><span class="muted">${query} | ${location}</span><br><span class="chip">${run.discovery_source === 'web_search' ? 'Web Search' : 'Google Maps'}</span></td>
+                        <td>#${run.id}<br><span class="muted">${query} | ${location}</span><br><span class="chip">${run.discovery_source === 'web_search' ? 'Web Search' : 'Google Maps'}</span>${renderIntentTags(run.intent_tags)}</td>
                         <td>${renderBadge(run.status)}</td>
                         <td>
                             ${progress}%

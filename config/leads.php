@@ -12,6 +12,10 @@ return [
         'max' => ['max_pages' => 10, 'max_results' => 200],
     ],
     'web_search_provider' => env('LEAD_WEB_SEARCH_PROVIDER', 'brave'),
+    'intent_tags' => [
+        'booking_system' => 'Booking System',
+        'ai_receptionist' => 'AI Receptionist',
+    ],
     'web_search_limits' => [
         'quick' => 10,
         'standard' => 20,

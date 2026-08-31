@@ -12,14 +12,18 @@ class LeadScanRun extends Model
     use HasFactory;
 
     public const STATUS_QUEUED = 'queued';
+
     public const STATUS_RUNNING = 'running';
+
     public const STATUS_COMPLETED = 'completed';
+
     public const STATUS_FAILED = 'failed';
 
     protected $fillable = [
         'query',
         'location',
         'discovery_source',
+        'intent_tags',
         'status',
         'total_places_found',
         'details_processed',
@@ -41,6 +45,7 @@ class LeadScanRun extends Model
             'websites_crawled' => 'integer',
             'emails_found' => 'integer',
             'phone_numbers_found' => 'integer',
+            'intent_tags' => 'array',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
         ];

@@ -66,6 +66,7 @@ class ScrapeGooglePlaces implements ShouldQueue
                     'source' => 'google_places',
                 ]
             );
+            $lead->addIntentTags((array) ($scanRun?->intent_tags ?? []));
 
             if ($scanRun) {
                 $scanRun->businessLeads()->syncWithoutDetaching([$lead->id]);

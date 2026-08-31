@@ -4,9 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class BusinessLead extends Model
 {
@@ -24,6 +24,7 @@ class BusinessLead extends Model
         'rating',
         'review_count',
         'source',
+        'intent_tags',
         'scraped',
     ];
 
@@ -32,8 +33,25 @@ class BusinessLead extends Model
         return [
             'rating' => 'decimal:2',
             'review_count' => 'integer',
+            'intent_tags' => 'array',
             'scraped' => 'boolean',
         ];
+    }
+
+    /** @param array<int, string> $tags */
+    public function addIntentTags(array $tags): void
+    {
+        $allowed = array_keys((array) config('leads.intent_tags', []));
+        $merged = collect([...(array) $this->intent_tags, ...$tags])
+            ->map(fn ($tag): string => trim((string) $tag))
+            ->filter(fn (string $tag): bool => in_array($tag, $allowed, true))
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($merged !== (array) $this->intent_tags) {
+            $this->update(['intent_tags' => $merged]);
+        }
     }
 
     public function emails(): HasMany

@@ -9,8 +9,8 @@ use App\Models\ZoomCallLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class LeadController extends Controller
@@ -21,6 +21,7 @@ class LeadController extends Controller
         $leadSearch = trim((string) $request->query('lead_search', ''));
         $contactFilter = (string) $request->query('contact', '');
         $scrapedFilter = (string) $request->query('scraped', '');
+        $intentFilter = (string) $request->query('intent', '');
         $scanRunId = $request->integer('scan_run') ?: null;
 
         $leads = collect();
@@ -77,6 +78,11 @@ class LeadController extends Controller
                 $leadsQuery->where('scraped', true);
             } elseif ($scrapedFilter === 'pending') {
                 $leadsQuery->where('scraped', false);
+            }
+
+            if (array_key_exists($intentFilter, (array) config('leads.intent_tags', []))
+                && Schema::hasColumn('business_leads', 'intent_tags')) {
+                $leadsQuery->whereJsonContains('intent_tags', $intentFilter);
             }
 
             if ($scanRunId) {
@@ -181,6 +187,8 @@ class LeadController extends Controller
             'leadSearch' => $leadSearch,
             'contactFilter' => $contactFilter,
             'scrapedFilter' => $scrapedFilter,
+            'intentFilter' => $intentFilter,
+            'intentTagOptions' => (array) config('leads.intent_tags', []),
             'scanRunId' => $scanRunId,
             'selectedScanRun' => $selectedScanRun,
             'batchTimezone' => $batchTimezone,
@@ -384,5 +392,4 @@ class LeadController extends Controller
             'outcome_breakdown' => $outcomeBreakdown,
         ];
     }
-
 }
