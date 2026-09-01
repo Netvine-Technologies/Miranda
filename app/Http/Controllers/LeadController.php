@@ -6,11 +6,11 @@ use App\Models\BusinessLead;
 use App\Models\LeadNote;
 use App\Models\LeadScanRun;
 use App\Models\ZoomCallLog;
+use App\Support\MarketTimezoneResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class LeadController extends Controller
@@ -273,27 +273,7 @@ class LeadController extends Controller
 
     protected function timezoneForLocation(?string $location): ?string
     {
-        $location = Str::lower(trim((string) $location));
-
-        if ($location === '') {
-            return null;
-        }
-
-        $market = collect((array) config('lead-markets.markets', []))
-            ->first(function (array $market) use ($location): bool {
-                $knownLocation = Str::lower((string) ($market['location'] ?? ''));
-                $city = Str::lower((string) ($market['name'] ?? ''));
-                $aliases = collect((array) ($market['aliases'] ?? []))
-                    ->map(fn ($alias): string => Str::lower(trim((string) $alias)));
-
-                return $location === $knownLocation
-                    || $aliases->contains($location)
-                    || ($city !== '' && (Str::startsWith($location, [$city.',', $city.' ']) || $location === $city));
-            });
-
-        return is_array($market) && filled($market['timezone'] ?? null)
-            ? (string) $market['timezone']
-            : null;
+        return app(MarketTimezoneResolver::class)->resolve($location);
     }
 
     /**
