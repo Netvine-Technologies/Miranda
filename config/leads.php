@@ -15,6 +15,7 @@ return [
     'intent_tags' => [
         'booking_system' => 'Booking System',
         'ai_receptionist' => 'AI Receptionist',
+        'mobile_business' => 'Mobile Business',
     ],
     'web_search_limits' => [
         'quick' => 10,
