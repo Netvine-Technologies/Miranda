@@ -16,6 +16,7 @@ return [
         'booking_system' => 'Booking System',
         'ai_receptionist' => 'AI Receptionist',
         'mobile_business' => 'Mobile Business',
+        'reservations' => 'Reservations',
     ],
     'web_search_limits' => [
         'quick' => 10,
