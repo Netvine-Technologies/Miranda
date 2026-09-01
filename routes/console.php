@@ -143,6 +143,15 @@ Schedule::command('zoom-phone:sync --days=2')
         && filled(config('zoom-phone.client_id'))
         && filled(config('zoom-phone.client_secret')));
 
+Schedule::command('leads:queue-repairs --limit=100 --before="2026-09-01T19:52:58Z"')
+    ->everyMinute()
+    ->withoutOverlapping(10);
+
+Schedule::command('queue:work database --queue=lead-repair --sleep=2 --tries=2 --timeout=180 --stop-when-empty --max-time=50 --memory=256')
+    ->everyMinute()
+    ->withoutOverlapping(10)
+    ->runInBackground();
+
 Artisan::command('queue:last-failed', function () {
     $row = DB::table('failed_jobs')->orderByDesc('id')->first();
 
