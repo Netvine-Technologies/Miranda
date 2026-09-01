@@ -3,6 +3,7 @@
 namespace App\Services\ZoomPhone;
 
 use App\Models\BusinessLead;
+use App\Support\PhoneNumberFormatter;
 
 class LeadPhoneMatcher
 {
@@ -38,8 +39,6 @@ class LeadPhoneMatcher
 
     protected function normalize(?string $phoneNumber): string
     {
-        $digits = preg_replace('/\D+/', '', (string) $phoneNumber) ?? '';
-
-        return str_starts_with($digits, '00') ? substr($digits, 2) : $digits;
+        return PhoneNumberFormatter::comparisonKey($phoneNumber);
     }
 }

@@ -39,9 +39,13 @@ class CrawlBusinessWebsite implements ShouldQueue
             return;
         }
 
-        $result = $websiteCrawler->crawl((string) $lead->website);
+        $result = $websiteCrawler->crawl(
+            (string) $lead->website,
+            $scanRun?->location ?: $lead->city,
+        );
         $emailsAdded = 0;
         $phonesAdded = 0;
+        $bestCrawledPhone = null;
 
         foreach ($result['emails'] as $emailData) {
             $email = LeadEmail::firstOrCreate(
@@ -66,6 +70,8 @@ class CrawlBusinessWebsite implements ShouldQueue
                 continue;
             }
 
+            $bestCrawledPhone ??= $phoneNumber;
+
             $phone = LeadPhoneNumber::firstOrCreate(
                 [
                     'business_lead_id' => $lead->id,
@@ -85,6 +91,10 @@ class CrawlBusinessWebsite implements ShouldQueue
             }
         }
 
+        if (! $lead->phone && $bestCrawledPhone !== null) {
+            $lead->phone = $bestCrawledPhone;
+        }
+
         if (! empty($result['booking_url'])) {
             $lead->booking_url = (string) $result['booking_url'];
         }
@@ -101,9 +111,11 @@ class CrawlBusinessWebsite implements ShouldQueue
 
     protected function isMobilePhone(string $phoneNumber): bool
     {
-        $normalized = preg_replace('/\s+/', '', $phoneNumber) ?? $phoneNumber;
+        $normalized = preg_replace('/\D+/', '', preg_replace('/\bext\b.*$/i', '', $phoneNumber) ?? $phoneNumber) ?? '';
 
-        return str_starts_with($normalized, '07') || str_starts_with($normalized, '+447');
+        return str_starts_with($normalized, '447')
+            || str_starts_with($normalized, '614')
+            || str_starts_with($normalized, '642');
     }
 
     protected function markScanAsCompletedIfFinished(?LeadScanRun $scanRun): void

@@ -342,7 +342,7 @@
                                                 <span class="muted">Unknown lead</span>
                                             @endif
                                             <div style="margin-top:6px;">
-                                                <a href="tel:{{ preg_replace('/[^0-9+]/', '', (string) $row['number']) }}">{{ $row['number'] }}</a>
+                                                <a href="tel:{{ \App\Support\PhoneNumberFormatter::telUri($row['number']) }}">{{ $row['number'] }}</a>
                                             </div>
                                         </td>
                                         <td>
@@ -419,14 +419,14 @@
                         <td class="muted">
                             Main:
                             @if ($lead->phone)
-                                <a href="tel:{{ preg_replace('/[^0-9+]/', '', (string) $lead->phone) }}">{{ $lead->phone }}</a>
+                                <a href="tel:{{ \App\Support\PhoneNumberFormatter::telUri($lead->phone) }}">{{ $lead->phone }}</a>
                             @else
                                 -
                             @endif
                             <br>
                             Mobile:
                             @if ($lead->mobile_phone)
-                                <a href="tel:{{ preg_replace('/[^0-9+]/', '', (string) $lead->mobile_phone) }}">{{ $lead->mobile_phone }}</a>
+                                <a href="tel:{{ \App\Support\PhoneNumberFormatter::telUri($lead->mobile_phone) }}">{{ $lead->mobile_phone }}</a>
                             @else
                                 -
                             @endif

@@ -7,6 +7,7 @@ use App\Models\LeadNote;
 use App\Models\LeadScanRun;
 use App\Models\ZoomCallLog;
 use App\Support\MarketTimezoneResolver;
+use App\Support\PhoneNumberFormatter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -266,9 +267,7 @@ class LeadController extends Controller
 
     protected function normalizePhoneNumber(?string $phoneNumber): string
     {
-        $digits = preg_replace('/\D+/', '', (string) $phoneNumber) ?? '';
-
-        return str_starts_with($digits, '00') ? substr($digits, 2) : $digits;
+        return PhoneNumberFormatter::comparisonKey($phoneNumber);
     }
 
     protected function timezoneForLocation(?string $location): ?string

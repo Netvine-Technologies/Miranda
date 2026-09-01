@@ -50,15 +50,20 @@ return [
         '/about',
         '/about-us',
     ],
+    'crawl_max_pages' => (int) env('LEAD_CRAWL_MAX_PAGES', 10),
     'email_domain_filter' => [
         'enabled' => env('LEAD_EMAIL_DOMAIN_FILTER_ENABLED', true),
-        'allow_external_domains' => array_values(array_filter(array_map(
-            static fn ($domain) => strtolower(trim((string) $domain)),
-            explode(',', (string) env('LEAD_EMAIL_ALLOW_EXTERNAL_DOMAINS', ''))
+        'allow_external_domains' => array_values(array_unique(array_merge(
+            ['gmail.com', 'outlook.com', 'hotmail.com', 'live.com', 'yahoo.com', 'icloud.com', 'me.com', 'aol.com', 'proton.me', 'protonmail.com', 'zoho.com'],
+            array_filter(array_map(
+                static fn ($domain) => strtolower(trim((string) $domain)),
+                explode(',', (string) env('LEAD_EMAIL_ALLOW_EXTERNAL_DOMAINS', ''))
+            ))
         ))),
         'deny_domains' => array_values(array_filter(array_map(
             static fn ($domain) => strtolower(trim((string) $domain)),
             explode(',', (string) env('LEAD_EMAIL_DENY_DOMAINS', 'sentry.io,sentry.wixpress.com'))
         ))),
+        'deny_local_parts' => ['noreply', 'no-reply', 'donotreply', 'do-not-reply', 'example', 'test'],
     ],
 ];

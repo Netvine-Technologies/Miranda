@@ -130,15 +130,19 @@
 
     @php
         $primaryNumbers = collect([
-            ['label' => 'Main phone', 'number' => $lead->phone, 'source' => 'Google Places'],
+            [
+                'label' => 'Main phone',
+                'number' => $lead->phone,
+                'source' => $lead->source === 'google_places' ? 'Google Places' : 'Official website',
+            ],
             ['label' => 'Saved mobile', 'number' => $lead->mobile_phone, 'source' => 'Lead record'],
         ])->filter(fn (array $phone) => filled($phone['number']));
         $normalizedPrimaryNumbers = $primaryNumbers
-            ->map(fn (array $phone) => preg_replace('/\D+/', '', (string) $phone['number']))
+            ->map(fn (array $phone) => \App\Support\PhoneNumberFormatter::comparisonKey($phone['number']))
             ->filter()
             ->all();
         $additionalNumbers = $lead->phoneNumbers->reject(function ($phone) use ($normalizedPrimaryNumbers) {
-            $normalized = preg_replace('/\D+/', '', (string) $phone->phone_number);
+            $normalized = \App\Support\PhoneNumberFormatter::comparisonKey($phone->phone_number);
 
             return $normalized !== '' && in_array($normalized, $normalizedPrimaryNumbers, true);
         });
@@ -146,7 +150,7 @@
 
     <div class="card">
         <h2>Contact Numbers</h2>
-        <p class="muted">The main number comes from Google Places. Other numbers were detected while crawling and retain their source for review.</p>
+        <p class="muted">The strongest number is shown first. Other numbers detected while crawling retain their source page for review.</p>
 
         @if ($primaryNumbers->isNotEmpty())
             <h3 style="margin:18px 0 10px;">Primary</h3>
@@ -154,8 +158,8 @@
                 <div class="contact-number">
                     <strong>{{ $phone['label'] }}</strong>
                     <span class="source-badge">{{ $phone['source'] }}</span><br>
-                    <a class="phone-link" href="tel:{{ preg_replace('/[^0-9+]/', '', (string) $phone['number']) }}">{{ $phone['number'] }}</a>
-                    <a class="source-badge" href="{{ route('zoom-phone.index', ['number' => preg_replace('/[^0-9+]/', '', (string) $phone['number'])]) }}">Open dialler</a>
+                    <a class="phone-link" href="tel:{{ \App\Support\PhoneNumberFormatter::telUri($phone['number']) }}">{{ $phone['number'] }}</a>
+                    <a class="source-badge" href="{{ route('zoom-phone.index', ['number' => \App\Support\PhoneNumberFormatter::dialable($phone['number'])]) }}">Open dialler</a>
                 </div>
             @endforeach
         @endif
@@ -164,8 +168,8 @@
             <h3 style="margin:22px 0 10px;">Additional numbers found</h3>
             @foreach ($additionalNumbers as $phone)
                 <div class="contact-number">
-                    <a class="phone-link" href="tel:{{ preg_replace('/[^0-9+]/', '', (string) $phone->phone_number) }}">{{ $phone->phone_number }}</a>
-                    <a class="source-badge" href="{{ route('zoom-phone.index', ['number' => preg_replace('/[^0-9+]/', '', (string) $phone->phone_number)]) }}">Open dialler</a>
+                    <a class="phone-link" href="tel:{{ \App\Support\PhoneNumberFormatter::telUri($phone->phone_number) }}">{{ $phone->phone_number }}</a>
+                    <a class="source-badge" href="{{ route('zoom-phone.index', ['number' => \App\Support\PhoneNumberFormatter::dialable($phone->phone_number)]) }}">Open dialler</a>
                     <span class="source-badge">Crawled</span>
                     @if ($phone->source_page)
                         <div class="muted" style="margin-top:5px;">Source: {{ $phone->source_page }}</div>
