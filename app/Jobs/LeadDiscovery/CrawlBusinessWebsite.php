@@ -95,7 +95,7 @@ class CrawlBusinessWebsite implements ShouldQueue
             $lead->phone = $bestCrawledPhone;
         }
 
-        if (! empty($result['booking_url'])) {
+        if (! $lead->booking_url && ! empty($result['booking_url'])) {
             $lead->booking_url = (string) $result['booking_url'];
         }
 
