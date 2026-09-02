@@ -8,6 +8,7 @@ use App\Models\LeadScanRun;
 use App\Models\ZoomCallLog;
 use App\Support\MarketTimezoneResolver;
 use App\Support\PhoneNumberFormatter;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -24,6 +25,13 @@ class LeadController extends Controller
         $scrapedFilter = (string) $request->query('scraped', '');
         $intentFilter = (string) $request->query('intent', '');
         $scanRunId = $request->integer('scan_run') ?: null;
+        $englishSpeakingMarkets = array_values((array) config('lead-markets.markets', []));
+        $marketFilter = trim((string) $request->query('market', ''));
+        $selectedMarket = $this->configuredMarket($marketFilter);
+
+        if (! $selectedMarket) {
+            $marketFilter = '';
+        }
 
         $leads = collect();
         $selectedScanRun = null;
@@ -88,6 +96,10 @@ class LeadController extends Controller
 
             if ($scanRunId) {
                 $leadsQuery->whereHas('scanRuns', fn ($query) => $query->whereKey($scanRunId));
+            }
+
+            if ($selectedMarket) {
+                $this->applyMarketFilter($leadsQuery, $selectedMarket);
             }
 
             $leads = $leadsQuery->paginate(20)->withQueryString();
@@ -190,6 +202,9 @@ class LeadController extends Controller
             'scrapedFilter' => $scrapedFilter,
             'intentFilter' => $intentFilter,
             'intentTagOptions' => (array) config('leads.intent_tags', []),
+            'englishSpeakingMarkets' => $englishSpeakingMarkets,
+            'marketFilter' => $marketFilter,
+            'selectedMarket' => $selectedMarket,
             'scanRunId' => $scanRunId,
             'selectedScanRun' => $selectedScanRun,
             'batchTimezone' => $batchTimezone,
@@ -211,11 +226,22 @@ class LeadController extends Controller
         ]);
 
         $scanRunId = $request->integer('scan_run') ?: null;
+        $marketFilter = trim((string) $request->query('market', ''));
+        $selectedMarket = $this->configuredMarket($marketFilter);
+
+        if (! $selectedMarket) {
+            $marketFilter = '';
+        }
+
         $timeContextRun = $scanRunId
             ? LeadScanRun::query()->find($scanRunId)
             : $businessLead->scanRuns()->latest('lead_scan_runs.id')->first();
         $scope = BusinessLead::query()
             ->when($scanRunId, fn ($query) => $query->whereHas('scanRuns', fn ($runQuery) => $runQuery->whereKey($scanRunId)));
+
+        if ($selectedMarket) {
+            $this->applyMarketFilter($scope, $selectedMarket);
+        }
 
         $previousLead = (clone $scope)
             ->where('id', '>', $businessLead->id)
@@ -229,6 +255,7 @@ class LeadController extends Controller
         return view('leads.show', [
             'lead' => $businessLead,
             'scanRunId' => $scanRunId,
+            'marketFilter' => $marketFilter,
             'previousLead' => $previousLead,
             'nextLead' => $nextLead,
             'timeContextRun' => $timeContextRun,
@@ -253,6 +280,9 @@ class LeadController extends Controller
             ->route('leads.show', [
                 'businessLead' => $businessLead,
                 'scan_run' => $request->integer('scan_run') ?: null,
+                'market' => $this->configuredMarket(trim((string) $request->input('market', '')))
+                    ? trim((string) $request->input('market'))
+                    : null,
             ])
             ->with('status', 'Lead note saved.');
     }
@@ -273,6 +303,42 @@ class LeadController extends Controller
     protected function timezoneForLocation(?string $location): ?string
     {
         return app(MarketTimezoneResolver::class)->resolve($location);
+    }
+
+    protected function configuredMarket(string $location): ?array
+    {
+        if ($location === '') {
+            return null;
+        }
+
+        return collect((array) config('lead-markets.markets', []))->first(
+            fn (array $market): bool => strcasecmp((string) ($market['location'] ?? ''), $location) === 0
+        );
+    }
+
+    protected function applyMarketFilter(Builder $query, array $selectedMarket): void
+    {
+        $marketTerms = collect([
+            $selectedMarket['name'] ?? null,
+            ...(array) ($selectedMarket['aliases'] ?? []),
+        ])
+            ->map(fn ($term): string => trim((string) $term))
+            ->filter()
+            ->reject(fn (string $term): bool => strcasecmp($term, (string) ($selectedMarket['country'] ?? '')) === 0)
+            ->unique(fn (string $term): string => mb_strtolower($term))
+            ->values();
+
+        $query->where(function (Builder $query) use ($selectedMarket, $marketTerms): void {
+            $query->whereHas('scanRuns', function (Builder $scanQuery) use ($selectedMarket): void {
+                $scanQuery->where('location', (string) $selectedMarket['location']);
+            });
+
+            foreach ($marketTerms as $term) {
+                $like = '%'.$term.'%';
+                $query->orWhere('city', 'like', $like)
+                    ->orWhere('address', 'like', $like);
+            }
+        });
     }
 
     /**

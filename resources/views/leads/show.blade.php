@@ -56,20 +56,20 @@
             <x-market-local-time :location="$timeContextRun->location" :timezone="$batchTimezone" />
         @endif
         <p>
-            <a class="button-link" href="{{ route('leads.index', ['scan_run' => $scanRunId]) }}">Back to Leads</a>
+            <a class="button-link" href="{{ route('leads.index', ['scan_run' => $scanRunId, 'market' => $marketFilter ?: null]) }}">Back to Leads</a>
             <a class="button-link" href="{{ route('leads.discovery.index') }}">Lead Discovery</a>
             <a class="button-link" href="{{ route('zoom-phone.index') }}" style="background:#2563eb;">Zoom Phone</a>
         </p>
 
         <div class="lead-nav">
             @if ($previousLead)
-                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $previousLead, 'scan_run' => $scanRunId]) }}">← Previous lead</a>
+                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $previousLead, 'scan_run' => $scanRunId, 'market' => $marketFilter ?: null]) }}">← Previous lead</a>
             @else
                 <span class="button-link disabled">← Previous lead</span>
             @endif
 
             @if ($nextLead)
-                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $nextLead, 'scan_run' => $scanRunId]) }}">Next lead →</a>
+                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $nextLead, 'scan_run' => $scanRunId, 'market' => $marketFilter ?: null]) }}">Next lead →</a>
             @else
                 <span class="button-link disabled">Next lead →</span>
             @endif
@@ -211,6 +211,9 @@
             @csrf
             @if ($scanRunId)
                 <input type="hidden" name="scan_run" value="{{ $scanRunId }}">
+            @endif
+            @if (filled($marketFilter ?? ''))
+                <input type="hidden" name="market" value="{{ $marketFilter }}">
             @endif
             <div class="grid">
                 <div>

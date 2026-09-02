@@ -107,12 +107,34 @@
         .outcome-stat span { color: #64748b; font-size: 12px; }
         .conversion-rate { margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0; color: #475569; font-size: 12px; line-height: 1.5; }
         .conversion-rate b { color: #1e293b; }
+        .market-summary { background: #111827; color: #f9fafb; }
+        .market-summary h2 { margin: 0; }
+        .market-summary .muted { color: #cbd5e1; }
+        .market-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-top: 16px; }
+        .market-card { border: 1px solid #334155; border-radius: 10px; padding: 13px; background: #1e293b; }
+        .market-card.opening-soon { border-color: #a16207; background: #422006; }
+        .market-card.selected-market { box-shadow: 0 0 0 2px #60a5fa; }
+        .market-action { width: 100%; box-sizing: border-box; margin-top: 10px; padding: 7px 9px; background: #2563eb; font-size: 12px; text-align: center; }
+        .market-time { margin: 7px 0 2px; font-size: 22px; font-weight: 700; }
+        .market-count { color: #86efac; font-weight: 700; }
+        .market-opening-soon { color: #fde68a; font-weight: 700; }
+        .market-empty { margin: 16px 0 0; color: #cbd5e1; }
+        .market-filter-notice { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; padding: 13px 15px; border: 1px solid #bfdbfe; border-radius: 10px; background: #eff6ff; }
+        .empty-leads { padding: 28px 12px; text-align: center; color: #475569; }
         @media (max-width: 700px) { .daily-metrics { grid-template-columns: 1fr; } }
     </style>
     @include('components.market-local-time-assets')
 </head>
 <body>
 <div class="wrap">
+    <section class="card market-summary" aria-live="polite">
+        <h2>English-speaking markets: open now &amp; opening soon</h2>
+        <p class="muted">Places within local hours of 09:00–17:00, plus markets opening in the next three hours. Select a market to view its leads.</p>
+        <p id="market-count" class="market-count">Checking local times…</p>
+        <div id="market-grid" class="market-grid"></div>
+        <p id="market-empty" class="market-empty" hidden>No listed markets are currently within business hours. The overview updates automatically.</p>
+    </section>
+
     <div class="card">
         <h1>Leads</h1>
         <p class="muted">Browse discovered businesses and open each lead for full contact details.</p>
@@ -166,7 +188,20 @@
         @if (!($migrationReady ?? false))
             <p class="muted">Lead Discovery tables are missing. Run <code>php artisan migrate</code>.</p>
         @else
+            @if (($selectedMarket ?? null) !== null)
+                <div class="market-filter-notice">
+                    <div>
+                        <strong>Viewing leads in {{ $selectedMarket['name'] }}, {{ $selectedMarket['country'] }}</strong>
+                        <div class="muted">These results include leads discovered for this market and leads whose city or address matches the region.</div>
+                    </div>
+                    <a class="button-link" href="{{ route('leads.index') }}" style="background:#334155;">View all leads</a>
+                </div>
+            @endif
+
             <form method="GET" action="{{ route('leads.index') }}">
+                @if (filled($marketFilter ?? ''))
+                    <input type="hidden" name="market" value="{{ $marketFilter }}">
+                @endif
                 @if (($dailyCallSummary ?? null) !== null)
                     <input type="hidden" name="activity_date" value="{{ $dailyCallSummary['date'] }}">
                 @endif
@@ -239,6 +274,9 @@
                             <div class="muted">{{ $dailyCallSummary['date_label'] }} | All discovery batches | {{ $dailyCallSummary['timezone'] }}</div>
                         </div>
                         <form class="date-filter" method="GET" action="{{ route('leads.index') }}">
+                            @if (filled($marketFilter ?? ''))
+                                <input type="hidden" name="market" value="{{ $marketFilter }}">
+                            @endif
                             @if (filled($leadSearch ?? ''))
                                 <input type="hidden" name="lead_search" value="{{ $leadSearch }}">
                             @endif
@@ -449,12 +487,19 @@
                             </div>
                         </td>
                         <td class="actions">
-                            <a class="button-link" href="{{ route('leads.show', ['businessLead' => $lead, 'scan_run' => $scanRunId]) }}">View</a>
+                            <a class="button-link" href="{{ route('leads.show', ['businessLead' => $lead, 'scan_run' => $scanRunId, 'market' => $marketFilter ?: null]) }}">View</a>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="muted">No leads found for the current filters.</td>
+                        <td colspan="5" class="empty-leads">
+                            @if (($selectedMarket ?? null) !== null)
+                                <strong>No leads found in {{ $selectedMarket['name'] }}, {{ $selectedMarket['country'] }}.</strong>
+                                <div style="margin-top:6px;">Try another open market or <a href="{{ route('leads.index') }}">view all leads</a>.</div>
+                            @else
+                                No leads found for the current filters.
+                            @endif
+                        </td>
                     </tr>
                 @endforelse
                 </tbody>
@@ -468,5 +513,97 @@
         @endif
     </div>
 </div>
+<script>
+    (() => {
+        const markets = @json($englishSpeakingMarkets ?? []);
+        const leadsUrl = @json(route('leads.index'));
+        const selectedLocation = @json($marketFilter ?? '');
+        const marketGrid = document.getElementById('market-grid');
+        const marketCount = document.getElementById('market-count');
+        const marketEmpty = document.getElementById('market-empty');
+
+        function escapeHtml(value) {
+            return String(value)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function localMarketTime(timezone) {
+            const parts = new Intl.DateTimeFormat('en-GB', {
+                timeZone: timezone,
+                weekday: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+                hourCycle: 'h23',
+            }).formatToParts(new Date());
+            const value = (type) => parts.find((part) => part.type === type)?.value || '';
+
+            return {
+                hour: Number(value('hour')),
+                minute: Number(value('minute')),
+                label: `${value('weekday')} ${value('hour')}:${value('minute')}`,
+            };
+        }
+
+        function availabilityFor(local) {
+            const currentMinute = (local.hour * 60) + local.minute;
+            const openingMinute = 9 * 60;
+            const closingMinute = 17 * 60;
+
+            if (currentMinute >= openingMinute && currentMinute < closingMinute) {
+                return { state: 'open', message: 'Open now · closes at 17:00' };
+            }
+
+            const minutesUntilOpen = openingMinute - currentMinute;
+            if (minutesUntilOpen > 0 && minutesUntilOpen <= 180) {
+                const hours = Math.floor(minutesUntilOpen / 60);
+                const minutes = minutesUntilOpen % 60;
+                const duration = [hours ? `${hours}h` : '', minutes ? `${minutes}m` : ''].filter(Boolean).join(' ');
+
+                return { state: 'opening_soon', message: `Opens in ${duration || 'under a minute'}` };
+            }
+
+            return null;
+        }
+
+        function renderOpenMarkets() {
+            const availableMarkets = markets.map((market) => {
+                try {
+                    const local = localMarketTime(market.timezone);
+                    const availability = availabilityFor(local);
+                    return availability ? { ...market, local, ...availability } : null;
+                } catch (error) {
+                    return null;
+                }
+            }).filter(Boolean);
+            const openCount = availableMarkets.filter((market) => market.state === 'open').length;
+            const openingSoonCount = availableMarkets.length - openCount;
+
+            marketCount.textContent = `${openCount} market${openCount === 1 ? '' : 's'} open now${openingSoonCount ? ` · ${openingSoonCount} opening within 3 hours` : ''}`;
+            marketEmpty.hidden = availableMarkets.length > 0;
+            marketGrid.innerHTML = availableMarkets.map((market) => {
+                const url = new URL(leadsUrl, window.location.origin);
+                url.searchParams.set('market', market.location);
+                const isSelected = market.location === selectedLocation;
+
+                return `
+                    <article class="market-card ${market.state === 'opening_soon' ? 'opening-soon' : ''} ${isSelected ? 'selected-market' : ''}">
+                        <strong>${escapeHtml(market.name)}</strong><br>
+                        <span class="muted">${escapeHtml(market.country)}</span>
+                        <div class="market-time">${escapeHtml(market.local.label)}</div>
+                        <span class="${market.state === 'opening_soon' ? 'market-opening-soon' : 'muted'}">${escapeHtml(market.message)}</span>
+                        <a class="button-link market-action" href="${escapeHtml(url.toString())}">View leads</a>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        renderOpenMarkets();
+        window.setInterval(renderOpenMarkets, 60000);
+    })();
+</script>
 </body>
 </html>
