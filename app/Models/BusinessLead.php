@@ -26,6 +26,15 @@ class BusinessLead extends Model
         'source',
         'intent_tags',
         'scraped',
+        'domain_registered_at',
+        'earliest_certificate_at',
+        'earliest_archive_at',
+        'website_launch_evidence_at',
+        'website_estimated_launched_at',
+        'website_freshness_score',
+        'website_freshness_confidence',
+        'website_freshness_evidence',
+        'website_freshness_checked_at',
     ];
 
     protected function casts(): array
@@ -35,6 +44,14 @@ class BusinessLead extends Model
             'review_count' => 'integer',
             'intent_tags' => 'array',
             'scraped' => 'boolean',
+            'domain_registered_at' => 'datetime',
+            'earliest_certificate_at' => 'datetime',
+            'earliest_archive_at' => 'datetime',
+            'website_launch_evidence_at' => 'datetime',
+            'website_estimated_launched_at' => 'datetime',
+            'website_freshness_score' => 'integer',
+            'website_freshness_evidence' => 'array',
+            'website_freshness_checked_at' => 'datetime',
         ];
     }
 

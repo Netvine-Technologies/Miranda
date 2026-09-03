@@ -54,6 +54,7 @@
         }
         .completed { background: #dcfce7; color: #166534; }
         .queued { background: #fef3c7; color: #92400e; }
+        .fresh-website { background: #ecfdf5; color: #047857; }
         .actions a { margin-right: 6px; }
         .batch-summary {
             margin-top: 18px;
@@ -234,6 +235,13 @@
                             @endforeach
                         </select>
                     </div>
+                    <div>
+                        <label for="website_age">Website Age</label>
+                        <select id="website_age" name="website_age">
+                            <option value="">All</option>
+                            <option value="new_30d" {{ ($websiteAgeFilter ?? '') === 'new_30d' ? 'selected' : '' }}>New within 30 days (high confidence)</option>
+                        </select>
+                    </div>
                     <div class="field">
                         <label for="scan_run">Discovery Batch</label>
                         <select id="scan_run" name="scan_run">
@@ -288,6 +296,9 @@
                             @endif
                             @if (filled($intentFilter ?? ''))
                                 <input type="hidden" name="intent" value="{{ $intentFilter }}">
+                            @endif
+                            @if (filled($websiteAgeFilter ?? ''))
+                                <input type="hidden" name="website_age" value="{{ $websiteAgeFilter }}">
                             @endif
                             <div>
                                 <label for="activity_date">Activity date</label>
@@ -485,9 +496,14 @@
                             <div class="muted" style="margin-top:6px;">
                                 Outcome: {{ $lead->latest_outcome ? ucwords(str_replace('_', ' ', $lead->latest_outcome)) : 'Not set' }}
                             </div>
+                            @if ($lead->website_freshness_confidence === 'high' && $lead->website_estimated_launched_at)
+                                <span class="chip fresh-website">New website · {{ $lead->website_freshness_score }}/100</span>
+                            @elseif ($lead->website_freshness_checked_at)
+                                <div class="muted" style="margin-top:6px;">Website freshness: {{ ucfirst($lead->website_freshness_confidence ?? 'unknown') }}</div>
+                            @endif
                         </td>
                         <td class="actions">
-                            <a class="button-link" href="{{ route('leads.show', ['businessLead' => $lead, 'scan_run' => $scanRunId, 'market' => $marketFilter ?: null]) }}">View</a>
+                            <a class="button-link" href="{{ route('leads.show', ['businessLead' => $lead, 'scan_run' => $scanRunId, 'market' => $marketFilter ?: null, 'website_age' => $websiteAgeFilter ?: null]) }}">View</a>
                         </td>
                     </tr>
                 @empty

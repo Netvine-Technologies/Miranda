@@ -51,6 +51,17 @@ return [
         '/about-us',
     ],
     'crawl_max_pages' => (int) env('LEAD_CRAWL_MAX_PAGES', 10),
+    'website_freshness' => [
+        'enabled' => env('LEAD_WEBSITE_FRESHNESS_ENABLED', true),
+        'recent_days' => (int) env('LEAD_WEBSITE_FRESHNESS_RECENT_DAYS', 30),
+        'recheck_days' => (int) env('LEAD_WEBSITE_FRESHNESS_RECHECK_DAYS', 30),
+        'high_confidence_score' => (int) env('LEAD_WEBSITE_FRESHNESS_HIGH_SCORE', 70),
+        'timeout_seconds' => (int) env('LEAD_WEBSITE_FRESHNESS_TIMEOUT', 8),
+        'user_agent' => env('LEAD_WEBSITE_FRESHNESS_USER_AGENT', 'MirandaLeadResearch/1.0'),
+        'rdap_url' => env('LEAD_WEBSITE_FRESHNESS_RDAP_URL', 'https://rdap.org/domain'),
+        'certificate_url' => env('LEAD_WEBSITE_FRESHNESS_CERTIFICATE_URL', 'https://crt.sh/'),
+        'archive_url' => env('LEAD_WEBSITE_FRESHNESS_ARCHIVE_URL', 'https://web.archive.org/cdx/search/cdx'),
+    ],
     'email_domain_filter' => [
         'enabled' => env('LEAD_EMAIL_DOMAIN_FILTER_ENABLED', true),
         'allow_external_domains' => array_values(array_unique(array_merge(

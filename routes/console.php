@@ -152,6 +152,15 @@ Schedule::command('queue:work database --queue=lead-repair --sleep=2 --tries=2 -
     ->withoutOverlapping(10)
     ->runInBackground();
 
+Schedule::command('leads:queue-website-freshness --limit=20')
+    ->everyMinute()
+    ->withoutOverlapping(10);
+
+Schedule::command('queue:work database --queue=lead-freshness --sleep=2 --tries=1 --timeout=120 --stop-when-empty --max-jobs=5 --max-time=50 --memory=256')
+    ->everyMinute()
+    ->withoutOverlapping(10)
+    ->runInBackground();
+
 Artisan::command('queue:last-failed', function () {
     $row = DB::table('failed_jobs')->orderByDesc('id')->first();
 

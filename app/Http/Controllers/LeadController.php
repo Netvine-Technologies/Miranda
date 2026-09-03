@@ -24,6 +24,9 @@ class LeadController extends Controller
         $contactFilter = (string) $request->query('contact', '');
         $scrapedFilter = (string) $request->query('scraped', '');
         $intentFilter = (string) $request->query('intent', '');
+        $websiteAgeFilter = in_array($request->query('website_age'), ['new_30d'], true)
+            ? (string) $request->query('website_age')
+            : '';
         $scanRunId = $request->integer('scan_run') ?: null;
         $englishSpeakingMarkets = array_values((array) config('lead-markets.markets', []));
         $marketFilter = trim((string) $request->query('market', ''));
@@ -92,6 +95,11 @@ class LeadController extends Controller
             if (array_key_exists($intentFilter, (array) config('leads.intent_tags', []))
                 && Schema::hasColumn('business_leads', 'intent_tags')) {
                 $leadsQuery->whereJsonContains('intent_tags', $intentFilter);
+            }
+
+            if ($websiteAgeFilter === 'new_30d'
+                && Schema::hasColumn('business_leads', 'website_freshness_confidence')) {
+                $this->applyWebsiteAgeFilter($leadsQuery);
             }
 
             if ($scanRunId) {
@@ -201,6 +209,7 @@ class LeadController extends Controller
             'contactFilter' => $contactFilter,
             'scrapedFilter' => $scrapedFilter,
             'intentFilter' => $intentFilter,
+            'websiteAgeFilter' => $websiteAgeFilter,
             'intentTagOptions' => (array) config('leads.intent_tags', []),
             'englishSpeakingMarkets' => $englishSpeakingMarkets,
             'marketFilter' => $marketFilter,
@@ -228,6 +237,7 @@ class LeadController extends Controller
         $scanRunId = $request->integer('scan_run') ?: null;
         $marketFilter = trim((string) $request->query('market', ''));
         $selectedMarket = $this->configuredMarket($marketFilter);
+        $websiteAgeFilter = $request->query('website_age') === 'new_30d' ? 'new_30d' : '';
 
         if (! $selectedMarket) {
             $marketFilter = '';
@@ -243,6 +253,11 @@ class LeadController extends Controller
             $this->applyMarketFilter($scope, $selectedMarket);
         }
 
+        if ($websiteAgeFilter === 'new_30d'
+            && Schema::hasColumn('business_leads', 'website_freshness_confidence')) {
+            $this->applyWebsiteAgeFilter($scope);
+        }
+
         $previousLead = (clone $scope)
             ->where('id', '>', $businessLead->id)
             ->orderBy('id')
@@ -256,6 +271,7 @@ class LeadController extends Controller
             'lead' => $businessLead,
             'scanRunId' => $scanRunId,
             'marketFilter' => $marketFilter,
+            'websiteAgeFilter' => $websiteAgeFilter,
             'previousLead' => $previousLead,
             'nextLead' => $nextLead,
             'timeContextRun' => $timeContextRun,
@@ -283,6 +299,7 @@ class LeadController extends Controller
                 'market' => $this->configuredMarket(trim((string) $request->input('market', '')))
                     ? trim((string) $request->input('market'))
                     : null,
+                'website_age' => $request->input('website_age') === 'new_30d' ? 'new_30d' : null,
             ])
             ->with('status', 'Lead note saved.');
     }
@@ -339,6 +356,14 @@ class LeadController extends Controller
                     ->orWhere('address', 'like', $like);
             }
         });
+    }
+
+    protected function applyWebsiteAgeFilter(Builder $query): void
+    {
+        $recentDays = max((int) config('leads.website_freshness.recent_days', 30), 1);
+
+        $query->where('website_freshness_confidence', 'high')
+            ->where('website_estimated_launched_at', '>=', now()->subDays($recentDays));
     }
 
     /**

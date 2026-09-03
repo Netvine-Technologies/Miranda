@@ -56,20 +56,20 @@
             <x-market-local-time :location="$timeContextRun->location" :timezone="$batchTimezone" />
         @endif
         <p>
-            <a class="button-link" href="{{ route('leads.index', ['scan_run' => $scanRunId, 'market' => $marketFilter ?: null]) }}">Back to Leads</a>
+            <a class="button-link" href="{{ route('leads.index', ['scan_run' => $scanRunId, 'market' => $marketFilter ?: null, 'website_age' => $websiteAgeFilter ?: null]) }}">Back to Leads</a>
             <a class="button-link" href="{{ route('leads.discovery.index') }}">Lead Discovery</a>
             <a class="button-link" href="{{ route('zoom-phone.index') }}" style="background:#2563eb;">Zoom Phone</a>
         </p>
 
         <div class="lead-nav">
             @if ($previousLead)
-                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $previousLead, 'scan_run' => $scanRunId, 'market' => $marketFilter ?: null]) }}">← Previous lead</a>
+                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $previousLead, 'scan_run' => $scanRunId, 'market' => $marketFilter ?: null, 'website_age' => $websiteAgeFilter ?: null]) }}">← Previous lead</a>
             @else
                 <span class="button-link disabled">← Previous lead</span>
             @endif
 
             @if ($nextLead)
-                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $nextLead, 'scan_run' => $scanRunId, 'market' => $marketFilter ?: null]) }}">Next lead →</a>
+                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $nextLead, 'scan_run' => $scanRunId, 'market' => $marketFilter ?: null, 'website_age' => $websiteAgeFilter ?: null]) }}">Next lead →</a>
             @else
                 <span class="button-link disabled">Next lead →</span>
             @endif
@@ -106,6 +106,26 @@
             <p><strong>Rating:</strong> {{ $lead->rating ?? '-' }}</p>
             <p><strong>Reviews:</strong> {{ $lead->review_count ?? '-' }}</p>
             <p><strong>Scraped:</strong> {{ $lead->scraped ? 'Yes' : 'No' }}</p>
+            <p><strong>Website freshness:</strong>
+                @if ($lead->website_freshness_checked_at)
+                    {{ ucfirst($lead->website_freshness_confidence ?? 'unknown') }} confidence
+                    · {{ number_format((int) ($lead->website_freshness_score ?? 0)) }}/100
+                @else
+                    Awaiting assessment
+                @endif
+            </p>
+            @if ($lead->website_estimated_launched_at)
+                <p><strong>Estimated launch:</strong> {{ $lead->website_estimated_launched_at->format('d M Y') }}</p>
+            @endif
+            @if ($lead->domain_registered_at)
+                <p class="muted">Domain registered {{ $lead->domain_registered_at->format('d M Y') }}</p>
+            @endif
+            @if ($lead->earliest_certificate_at)
+                <p class="muted">Earliest certificate observed {{ $lead->earliest_certificate_at->format('d M Y') }}</p>
+            @endif
+            @if ($lead->earliest_archive_at)
+                <p class="muted">Earliest archived page observed {{ $lead->earliest_archive_at->format('d M Y') }}</p>
+            @endif
             <p class="muted">Updated {{ optional($lead->updated_at)->toDateTimeString() }}</p>
         </div>
 
@@ -214,6 +234,9 @@
             @endif
             @if (filled($marketFilter ?? ''))
                 <input type="hidden" name="market" value="{{ $marketFilter }}">
+            @endif
+            @if (filled($websiteAgeFilter ?? ''))
+                <input type="hidden" name="website_age" value="{{ $websiteAgeFilter }}">
             @endif
             <div class="grid">
                 <div>
