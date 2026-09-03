@@ -19,8 +19,6 @@ class NewWebsiteCandidate extends Model
 
     public const STATUS_FAILED = 'failed';
 
-    public const STATUS_FAILED = 'failed';
-
     protected $fillable = [
         'domain',
         'source',
