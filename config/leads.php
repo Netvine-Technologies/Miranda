@@ -62,6 +62,35 @@ return [
         'certificate_url' => env('LEAD_WEBSITE_FRESHNESS_CERTIFICATE_URL', 'https://crt.sh/'),
         'archive_url' => env('LEAD_WEBSITE_FRESHNESS_ARCHIVE_URL', 'https://web.archive.org/cdx/search/cdx'),
     ],
+    'new_websites' => [
+        'enabled' => env('LEAD_NEW_WEBSITES_ENABLED', true),
+        'public_sample_enabled' => env('LEAD_NEW_WEBSITES_PUBLIC_SAMPLE_ENABLED', true),
+        'public_sample_url' => env(
+            'LEAD_NEW_WEBSITES_PUBLIC_SAMPLE_URL',
+            'https://newly-registered-domains.whoisxmlapi.com/sample/nrd.%s.lite.daily.1000.csv'
+        ),
+        'daily_import_limit' => (int) env('LEAD_NEW_WEBSITES_DAILY_IMPORT_LIMIT', 1000),
+        'daily_qualification_limit' => (int) env('LEAD_NEW_WEBSITES_DAILY_QUALIFICATION_LIMIT', 25),
+        'minimum_priority_score' => (int) env('LEAD_NEW_WEBSITES_MINIMUM_PRIORITY_SCORE', 60),
+        'request_timeout_seconds' => (int) env('LEAD_NEW_WEBSITES_REQUEST_TIMEOUT', 20),
+        'blocked_tlds' => [
+            'asia', 'bet', 'buzz', 'cam', 'casino', 'cfd', 'click', 'icu', 'lol',
+            'mom', 'one', 'rest', 'sbs', 'surf', 'top', 'vip', 'win', 'xyz',
+        ],
+        'industry_terms' => [
+            'restaurant' => ['restaurant', 'cafe', 'coffee', 'bistro', 'grill', 'catering', 'bakery', 'tavern', 'cocktailbar'],
+            'hospitality' => ['hotel', 'motel', 'lodge', 'resort', 'bnb', 'campground'],
+            'tourism' => ['tour', 'travel', 'cruise', 'adventure', 'excursion'],
+            'events' => ['wedding', 'venue', 'events', 'party', 'photography', 'photographer'],
+            'beauty_wellness' => ['salon', 'barber', 'spa', 'massage', 'nails', 'lashes', 'tattoo', 'pilates', 'yoga', 'fitness', 'gym'],
+            'healthcare' => ['dental', 'dentist', 'orthodont', 'physio', 'therapy', 'chiro', 'podiatr', 'optom', 'audiolog', 'clinic'],
+            'pet_care' => ['veterinary', 'vets', 'petcare', 'groom', 'kennel', 'dogwalk', 'dogwalker'],
+            'home_services' => ['hvac', 'heating', 'cooling', 'plumb', 'roof', 'locksmith', 'restoration', 'septic', 'drain', 'sewer', 'pest', 'appliance', 'treecare', 'junkremoval', 'movers', 'moving'],
+            'automotive' => ['automotive', 'autorepair', 'mechanic', 'collision', 'windscreen', 'windshield', 'tyre', 'tire', 'detailing', 'towing', 'garage'],
+            'professional' => ['lawfirm', 'lawyer', 'attorney', 'legal', 'accounting', 'accountant', 'tax', 'insurance', 'mortgage', 'recruitment', 'staffing', 'realty', 'realtor', 'propertymanagement'],
+            'education_family' => ['childcare', 'daycare', 'tutoring', 'musicschool', 'drivingschool', 'swimschool'],
+        ],
+    ],
     'email_domain_filter' => [
         'enabled' => env('LEAD_EMAIL_DOMAIN_FILTER_ENABLED', true),
         'allow_external_domains' => array_values(array_unique(array_merge(

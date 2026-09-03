@@ -195,8 +195,26 @@ class WebsiteFreshnessAssessor
     /** @return array{Carbon|null, string} */
     protected function onSiteLaunchDate(string $website): array
     {
+        $urlGuard = app(PublicWebUrlGuard::class);
+
+        if (! $urlGuard->allows($website)) {
+            return [null, 'rejected_non_public_url'];
+        }
+
         try {
-            $response = $this->pageRequest()->get($website);
+            $response = $this->pageRequest()
+                ->withOptions([
+                    'allow_redirects' => [
+                        'max' => 5,
+                        'strict' => true,
+                        'on_redirect' => function ($request, $response, $uri) use ($urlGuard): void {
+                            if (! $urlGuard->allows((string) $uri)) {
+                                throw new \RuntimeException('Redirect target is not a public web URL.');
+                            }
+                        },
+                    ],
+                ])
+                ->get($website);
 
             if (! $response->successful()) {
                 return [null, 'unavailable_http_'.$response->status()];

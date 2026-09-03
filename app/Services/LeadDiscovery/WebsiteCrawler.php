@@ -369,9 +369,28 @@ class WebsiteCrawler
 
     protected function fetchPage(string $url): ?string
     {
+        $urlGuard = app(PublicWebUrlGuard::class);
+
+        if (! $urlGuard->allows($url)) {
+            Log::warning('Lead crawler rejected a non-public website URL.', ['url' => $url]);
+
+            return null;
+        }
+
         try {
             $response = Http::timeout(15)
                 ->retry(1, 300)
+                ->withOptions([
+                    'allow_redirects' => [
+                        'max' => 5,
+                        'strict' => true,
+                        'on_redirect' => function ($request, $response, $uri) use ($urlGuard): void {
+                            if (! $urlGuard->allows((string) $uri)) {
+                                throw new \RuntimeException('Redirect target is not a public web URL.');
+                            }
+                        },
+                    ],
+                ])
                 ->withHeaders([
                     'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 MirandaLeadCrawler/2.0',
                     'Accept' => 'text/html,application/xhtml+xml,application/json;q=0.8,*/*;q=0.5',

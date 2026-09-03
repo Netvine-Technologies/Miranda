@@ -161,6 +161,15 @@ Schedule::command('queue:work database --queue=lead-freshness --sleep=2 --tries=
     ->withoutOverlapping(10)
     ->runInBackground();
 
+Schedule::command('leads:import-new-websites')
+    ->dailyAt('06:30')
+    ->withoutOverlapping(30);
+
+Schedule::command('queue:work database --queue=lead-new-websites --sleep=2 --tries=1 --timeout=240 --stop-when-empty --max-jobs=3 --max-time=50 --memory=256')
+    ->everyMinute()
+    ->withoutOverlapping(10)
+    ->runInBackground();
+
 Artisan::command('queue:last-failed', function () {
     $row = DB::table('failed_jobs')->orderByDesc('id')->first();
 
