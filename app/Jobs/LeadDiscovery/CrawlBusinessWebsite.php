@@ -102,6 +102,10 @@ class CrawlBusinessWebsite implements ShouldQueue
         $lead->scraped = true;
         $lead->save();
 
+        if (config('leads.website_freshness.enabled', true)) {
+            AssessWebsiteFreshness::dispatch($lead->id);
+        }
+
         if ($scanRun) {
             $scanRun->incrementCounters($emailsAdded, $phonesAdded, true);
         }

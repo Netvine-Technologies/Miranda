@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\LeadDiscovery\AssessWebsiteFreshness;
 use App\Jobs\LeadDiscovery\CrawlBusinessWebsite;
 use App\Models\BusinessLead;
 use App\Services\LeadDiscovery\WebsiteCrawler;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Mockery;
 use Tests\TestCase;
 
@@ -15,6 +17,8 @@ class LeadWebsiteCrawlJobTest extends TestCase
 
     public function test_a_high_confidence_crawled_phone_becomes_the_main_lead_number(): void
     {
+        Queue::fake();
+
         $lead = BusinessLead::create([
             'name' => 'Example Business',
             'place_id' => 'web:example-business',
@@ -47,5 +51,8 @@ class LeadWebsiteCrawlJobTest extends TestCase
             'business_lead_id' => $lead->id,
             'email' => 'hello@example.com',
         ]);
+        Queue::assertPushed(AssessWebsiteFreshness::class, function (AssessWebsiteFreshness $job) use ($lead): bool {
+            return $job->businessLeadId === $lead->id && $job->queue === 'lead-freshness';
+        });
     }
 }
