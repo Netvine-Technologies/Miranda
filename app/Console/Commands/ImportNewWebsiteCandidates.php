@@ -40,11 +40,7 @@ class ImportNewWebsiteCandidates extends Command
             return self::FAILURE;
         }
 
-        if (DB::table('jobs')->where('queue', 'lead-new-websites')->exists()) {
-            $this->line('The new website qualification queue is still active.');
-
-            return self::SUCCESS;
-        }
+        $queueBusy = DB::table('jobs')->where('queue', 'lead-new-websites')->exists();
 
         try {
             $date = $this->feedDate();
@@ -85,13 +81,15 @@ class ImportNewWebsiteCandidates extends Command
             $created += $candidate->wasRecentlyCreated ? 1 : 0;
         }
 
-        $candidates = NewWebsiteCandidate::query()
-            ->where('status', NewWebsiteCandidate::STATUS_PENDING)
-            ->orderByDesc('priority_score')
-            ->orderByDesc('source_date')
-            ->orderBy('id')
-            ->limit($queueLimit)
-            ->get();
+        $candidates = $queueBusy
+            ? collect()
+            : NewWebsiteCandidate::query()
+                ->where('status', NewWebsiteCandidate::STATUS_PENDING)
+                ->orderByDesc('priority_score')
+                ->orderByDesc('source_date')
+                ->orderBy('id')
+                ->limit($queueLimit)
+                ->get();
 
         foreach ($candidates as $candidate) {
             $candidate->update(['status' => NewWebsiteCandidate::STATUS_QUEUED]);

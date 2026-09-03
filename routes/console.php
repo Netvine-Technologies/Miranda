@@ -165,6 +165,10 @@ Schedule::command('leads:import-new-websites')
     ->dailyAt('06:30')
     ->withoutOverlapping(30);
 
+Schedule::command('leads:queue-new-websites --limit=10')
+    ->everyMinute()
+    ->withoutOverlapping(10);
+
 Schedule::command('queue:work database --queue=lead-new-websites --sleep=2 --tries=1 --timeout=240 --stop-when-empty --max-jobs=3 --max-time=50 --memory=256')
     ->everyMinute()
     ->withoutOverlapping(10)
