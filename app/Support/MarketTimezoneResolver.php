@@ -29,6 +29,15 @@ class MarketTimezoneResolver
         $region = (string) $parts->get(1, '');
         $country = (string) $parts->last();
 
+        $cityCountryTimezone = $this->timezoneFromMap(
+            'lead-markets.city_country_timezones',
+            trim($city.' '.$country),
+        );
+
+        if ($cityCountryTimezone !== null) {
+            return $cityCountryTimezone;
+        }
+
         $regionTimezone = $this->timezoneFromMap(
             'lead-markets.region_timezones',
             trim($region.' '.$country),

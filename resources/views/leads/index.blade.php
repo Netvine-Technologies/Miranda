@@ -121,6 +121,11 @@
         .market-opening-soon { color: #fde68a; font-weight: 700; }
         .market-empty { margin: 16px 0 0; color: #cbd5e1; }
         .market-filter-notice { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; padding: 13px 15px; border: 1px solid #bfdbfe; border-radius: 10px; background: #eff6ff; }
+        .lead-row-clock { min-width: 0; display: inline-block; margin-top: 8px; padding: 6px 9px; }
+        .lead-row-clock .market-clock-location { font-size: 10px; }
+        .lead-row-clock .market-clock-time { font-size: 14px; }
+        .lead-row-clock .market-clock-status { font-size: 11px; }
+        .location-filter-note { margin-top: 5px; font-size: 12px; color: #64748b; }
         .empty-leads { padding: 28px 12px; text-align: center; color: #475569; }
         @media (max-width: 700px) { .daily-metrics { grid-template-columns: 1fr; } }
     </style>
@@ -130,7 +135,7 @@
 <div class="wrap">
     <section class="card market-summary" aria-live="polite">
         <h2>English-speaking markets: open now &amp; opening soon</h2>
-        <p class="muted">Places within local hours of 09:00–17:00, plus markets opening in the next three hours. Select a market to view its leads.</p>
+        <p class="muted">Places with stored leads within local hours of 09:00–17:00, plus those opening in the next three hours.</p>
         <p id="market-count" class="market-count">Checking local times…</p>
         <div id="market-grid" class="market-grid"></div>
         <p id="market-empty" class="market-empty" hidden>No listed markets are currently within business hours. The overview updates automatically.</p>
@@ -189,20 +194,23 @@
         @if (!($migrationReady ?? false))
             <p class="muted">Lead Discovery tables are missing. Run <code>php artisan migrate</code>.</p>
         @else
-            @if (($selectedMarket ?? null) !== null)
+            @if (($countryOption ?? null) !== null)
                 <div class="market-filter-notice">
                     <div>
-                        <strong>Viewing leads in {{ $selectedMarket['name'] }}, {{ $selectedMarket['country'] }}</strong>
-                        <div class="muted">These results include leads discovered for this market and leads whose city or address matches the region.</div>
+                        <strong>
+                            Viewing leads in
+                            @if (($selectedRegionOption ?? null) !== null)
+                                {{ $selectedRegionOption['label'] }},
+                            @endif
+                            {{ $countryOption['label'] }}
+                        </strong>
+                        <div class="muted">The choices below are built from locations that currently have leads.</div>
                     </div>
                     <a class="button-link" href="{{ route('leads.index') }}" style="background:#334155;">View all leads</a>
                 </div>
             @endif
 
             <form method="GET" action="{{ route('leads.index') }}">
-                @if (filled($marketFilter ?? ''))
-                    <input type="hidden" name="market" value="{{ $marketFilter }}">
-                @endif
                 @if (($dailyCallSummary ?? null) !== null)
                     <input type="hidden" name="activity_date" value="{{ $dailyCallSummary['date'] }}">
                 @endif
@@ -241,6 +249,31 @@
                             <option value="">All</option>
                             <option value="new_30d" {{ ($websiteAgeFilter ?? '') === 'new_30d' ? 'selected' : '' }}>New within 30 days (high confidence)</option>
                         </select>
+                    </div>
+                    <div>
+                        <label for="country">Country</label>
+                        <select id="country" name="country">
+                            <option value="">All countries</option>
+                            @foreach (($countryOptions ?? []) as $option)
+                                <option value="{{ $option['value'] }}" {{ ($countryFilter ?? '') === $option['value'] ? 'selected' : '' }}>
+                                    {{ $option['label'] }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label for="region">Region / market</label>
+                        <select id="region" name="region" data-selected-region="{{ $regionFilter ?? '' }}" {{ filled($countryFilter ?? '') ? '' : 'disabled' }}>
+                            <option value="">All regions</option>
+                            @foreach (($regionOptions ?? []) as $option)
+                                @if (($countryFilter ?? '') === $option['country'])
+                                    <option value="{{ $option['value'] }}" {{ ($regionFilter ?? '') === $option['value'] ? 'selected' : '' }}>
+                                        {{ $option['label'] }}
+                                    </option>
+                                @endif
+                            @endforeach
+                        </select>
+                        <div class="location-filter-note">Regions update after you choose a country.</div>
                     </div>
                     <div class="field">
                         <label for="scan_run">Discovery Batch</label>
@@ -282,8 +315,11 @@
                             <div class="muted">{{ $dailyCallSummary['date_label'] }} | All discovery batches | {{ $dailyCallSummary['timezone'] }}</div>
                         </div>
                         <form class="date-filter" method="GET" action="{{ route('leads.index') }}">
-                            @if (filled($marketFilter ?? ''))
-                                <input type="hidden" name="market" value="{{ $marketFilter }}">
+                            @if (filled($countryFilter ?? ''))
+                                <input type="hidden" name="country" value="{{ $countryFilter }}">
+                            @endif
+                            @if (filled($regionFilter ?? ''))
+                                <input type="hidden" name="region" value="{{ $regionFilter }}">
                             @endif
                             @if (filled($leadSearch ?? ''))
                                 <input type="hidden" name="lead_search" value="{{ $leadSearch }}">
@@ -455,6 +491,25 @@
                             <div><strong>{{ $lead->name }}</strong></div>
                             <div class="muted">{{ $lead->city ?: '-' }}</div>
                             <div class="muted">{{ $lead->address ?: '-' }}</div>
+                            @if ($lead->local_time_location)
+                                <div
+                                    class="market-clock lead-row-clock {{ $lead->local_timezone ? '' : 'market-clock-unknown' }}"
+                                    data-market-clock
+                                    data-lead-clock
+                                    data-timezone="{{ $lead->local_timezone }}"
+                                    data-opening-hour="{{ (int) config('lead-markets.calling_hours.start', 9) }}"
+                                    data-closing-hour="{{ (int) config('lead-markets.calling_hours.end', 17) }}"
+                                >
+                                    <span class="market-clock-location">{{ $lead->local_time_location }}</span>
+                                    @if ($lead->local_timezone)
+                                        <strong class="market-clock-time">Checking local time...</strong>
+                                        <span class="market-clock-status">Checking calling hours...</span>
+                                    @else
+                                        <strong class="market-clock-time">Local time unavailable</strong>
+                                        <span class="market-clock-status">A more precise region is needed.</span>
+                                    @endif
+                                </div>
+                            @endif
                             @foreach ((array) $lead->intent_tags as $intent)
                                 <span class="chip intent-chip">{{ $intentTagOptions[$intent] ?? ucwords(str_replace('_', ' ', $intent)) }}</span>
                             @endforeach
@@ -503,14 +558,20 @@
                             @endif
                         </td>
                         <td class="actions">
-                            <a class="button-link" href="{{ route('leads.show', ['businessLead' => $lead, 'scan_run' => $scanRunId, 'market' => $marketFilter ?: null, 'website_age' => $websiteAgeFilter ?: null]) }}">View</a>
+                            <a class="button-link" href="{{ route('leads.show', ['businessLead' => $lead, 'scan_run' => $scanRunId, 'country' => $countryFilter ?: null, 'region' => $regionFilter ?: null, 'website_age' => $websiteAgeFilter ?: null]) }}">View</a>
                         </td>
                     </tr>
                 @empty
                     <tr>
                         <td colspan="5" class="empty-leads">
-                            @if (($selectedMarket ?? null) !== null)
-                                <strong>No leads found in {{ $selectedMarket['name'] }}, {{ $selectedMarket['country'] }}.</strong>
+                            @if (($countryOption ?? null) !== null)
+                                <strong>
+                                    No leads found in
+                                    @if (($selectedRegionOption ?? null) !== null)
+                                        {{ $selectedRegionOption['label'] }},
+                                    @endif
+                                    {{ $countryOption['label'] }}.
+                                </strong>
                                 <div style="margin-top:6px;">Try another open market or <a href="{{ route('leads.index') }}">view all leads</a>.</div>
                             @else
                                 No leads found for the current filters.
@@ -532,8 +593,10 @@
 <script>
     (() => {
         const markets = @json($englishSpeakingMarkets ?? []);
+        const regions = @json($regionOptions ?? []);
         const leadsUrl = @json(route('leads.index'));
-        const selectedLocation = @json($marketFilter ?? '');
+        const selectedCountry = @json($countryFilter ?? '');
+        const selectedLocation = @json($regionFilter ?? '');
         const marketGrid = document.getElementById('market-grid');
         const marketCount = document.getElementById('market-count');
         const marketEmpty = document.getElementById('market-empty');
@@ -587,6 +650,10 @@
 
         function renderOpenMarkets() {
             const availableMarkets = markets.map((market) => {
+                const hasLeads = regions.some((region) => region.country === market.country && region.value === market.name);
+
+                if (!hasLeads) return null;
+
                 try {
                     const local = localMarketTime(market.timezone);
                     const availability = availabilityFor(local);
@@ -602,8 +669,9 @@
             marketEmpty.hidden = availableMarkets.length > 0;
             marketGrid.innerHTML = availableMarkets.map((market) => {
                 const url = new URL(leadsUrl, window.location.origin);
-                url.searchParams.set('market', market.location);
-                const isSelected = market.location === selectedLocation;
+                url.searchParams.set('country', market.country);
+                url.searchParams.set('region', market.name);
+                const isSelected = market.country === selectedCountry && market.name === selectedLocation;
 
                 return `
                     <article class="market-card ${market.state === 'opening_soon' ? 'opening-soon' : ''} ${isSelected ? 'selected-market' : ''}">
@@ -619,6 +687,29 @@
 
         renderOpenMarkets();
         window.setInterval(renderOpenMarkets, 60000);
+
+        const countrySelect = document.getElementById('country');
+        const regionSelect = document.getElementById('region');
+
+        function renderRegionOptions(keepSelection = true) {
+            if (!countrySelect || !regionSelect) return;
+
+            const country = countrySelect.value;
+            const previous = keepSelection ? regionSelect.dataset.selectedRegion || regionSelect.value : '';
+            const available = regions.filter((region) => region.country === country);
+            regionSelect.disabled = country === '';
+            regionSelect.innerHTML = '<option value="">All regions</option>' + available.map((region) => {
+                const selected = region.value === previous ? ' selected' : '';
+                return `<option value="${escapeHtml(region.value)}"${selected}>${escapeHtml(region.label)}</option>`;
+            }).join('');
+            regionSelect.dataset.selectedRegion = regionSelect.value;
+        }
+
+        countrySelect?.addEventListener('change', () => renderRegionOptions(false));
+        regionSelect?.addEventListener('change', () => {
+            regionSelect.dataset.selectedRegion = regionSelect.value;
+        });
+        renderRegionOptions(true);
     })();
 </script>
 </body>

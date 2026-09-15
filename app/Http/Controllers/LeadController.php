@@ -6,12 +6,14 @@ use App\Models\BusinessLead;
 use App\Models\LeadNote;
 use App\Models\LeadScanRun;
 use App\Models\ZoomCallLog;
+use App\Support\LeadLocationResolver;
 use App\Support\MarketTimezoneResolver;
 use App\Support\PhoneNumberFormatter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
@@ -31,9 +33,17 @@ class LeadController extends Controller
         $englishSpeakingMarkets = array_values((array) config('lead-markets.markets', []));
         $marketFilter = trim((string) $request->query('market', ''));
         $selectedMarket = $this->configuredMarket($marketFilter);
+        $countryFilter = trim((string) $request->query('country', ''));
+        $regionFilter = trim((string) $request->query('region', ''));
+        $locationFilters = ['countries' => [], 'regions' => []];
+        $countryOption = null;
+        $selectedRegionOption = null;
 
         if (! $selectedMarket) {
             $marketFilter = '';
+        } else {
+            $countryFilter = $countryFilter ?: (string) ($selectedMarket['country'] ?? '');
+            $regionFilter = $regionFilter ?: (string) ($selectedMarket['name'] ?? '');
         }
 
         $leads = collect();
@@ -49,6 +59,32 @@ class LeadController extends Controller
         ];
 
         if ($migrationReady) {
+            $locationResolver = app(LeadLocationResolver::class);
+            $locationFilters = $this->availableLocationFilters($locationResolver);
+            $countryOption = collect($locationFilters['countries'])->first(
+                fn (array $option): bool => strcasecmp((string) $option['value'], $countryFilter) === 0
+            );
+
+            if ($countryFilter !== '' && ! $countryOption) {
+                $countryFilter = '';
+                $regionFilter = '';
+            } elseif ($countryOption) {
+                $countryFilter = (string) $countryOption['value'];
+            }
+
+            if ($regionFilter !== '') {
+                $selectedRegionOption = collect($locationFilters['regions'])->first(
+                    fn (array $option): bool => strcasecmp((string) $option['country'], $countryFilter) === 0
+                        && strcasecmp((string) $option['value'], $regionFilter) === 0
+                );
+
+                if (! $selectedRegionOption) {
+                    $regionFilter = '';
+                } else {
+                    $regionFilter = (string) $selectedRegionOption['value'];
+                }
+            }
+
             $leadsQuery = BusinessLead::query()
                 ->withCount(['emails', 'phoneNumbers'])
                 ->with([
@@ -60,6 +96,14 @@ class LeadController extends Controller
                         ->select('outcome')
                         ->whereColumn('business_lead_id', 'business_leads.id')
                         ->latest()
+                        ->limit(1),
+                    'time_location' => DB::table('lead_scan_runs')
+                        ->select('lead_scan_runs.location')
+                        ->join('lead_scan_run_business_lead', 'lead_scan_run_business_lead.lead_scan_run_id', '=', 'lead_scan_runs.id')
+                        ->whereColumn('lead_scan_run_business_lead.business_lead_id', 'business_leads.id')
+                        ->whereNotNull('lead_scan_runs.location')
+                        ->where('lead_scan_runs.location', '!=', '')
+                        ->orderByDesc('lead_scan_runs.id')
                         ->limit(1),
                 ])
                 ->orderByDesc('id');
@@ -106,11 +150,20 @@ class LeadController extends Controller
                 $leadsQuery->whereHas('scanRuns', fn ($query) => $query->whereKey($scanRunId));
             }
 
-            if ($selectedMarket) {
-                $this->applyMarketFilter($leadsQuery, $selectedMarket);
+            if ($countryOption) {
+                $this->applyCountryFilter($leadsQuery, $countryOption);
+            }
+
+            if ($selectedRegionOption) {
+                $this->applyRegionFilter($leadsQuery, $selectedRegionOption);
             }
 
             $leads = $leadsQuery->paginate(20)->withQueryString();
+            $leads->getCollection()->each(function (BusinessLead $lead) use ($locationResolver): void {
+                $context = $this->leadLocalTimeContext($lead, $locationResolver);
+                $lead->setAttribute('local_time_location', $context['location']);
+                $lead->setAttribute('local_timezone', $context['timezone']);
+            });
 
             if ($scanRunId) {
                 $selectedScanRun = LeadScanRun::query()
@@ -212,8 +265,12 @@ class LeadController extends Controller
             'websiteAgeFilter' => $websiteAgeFilter,
             'intentTagOptions' => (array) config('leads.intent_tags', []),
             'englishSpeakingMarkets' => $englishSpeakingMarkets,
-            'marketFilter' => $marketFilter,
-            'selectedMarket' => $selectedMarket,
+            'countryFilter' => $countryFilter,
+            'regionFilter' => $regionFilter,
+            'countryOptions' => $locationFilters['countries'],
+            'regionOptions' => $locationFilters['regions'],
+            'countryOption' => $countryOption,
+            'selectedRegionOption' => $selectedRegionOption,
             'scanRunId' => $scanRunId,
             'selectedScanRun' => $selectedScanRun,
             'batchTimezone' => $batchTimezone,
@@ -238,10 +295,28 @@ class LeadController extends Controller
         $marketFilter = trim((string) $request->query('market', ''));
         $selectedMarket = $this->configuredMarket($marketFilter);
         $websiteAgeFilter = $request->query('website_age') === 'new_30d' ? 'new_30d' : '';
+        $countryFilter = trim((string) $request->query('country', ''));
+        $regionFilter = trim((string) $request->query('region', ''));
 
         if (! $selectedMarket) {
             $marketFilter = '';
+        } else {
+            $countryFilter = $countryFilter ?: (string) ($selectedMarket['country'] ?? '');
+            $regionFilter = $regionFilter ?: (string) ($selectedMarket['name'] ?? '');
         }
+
+        $locationFilters = $this->availableLocationFilters(app(LeadLocationResolver::class));
+        $countryOption = collect($locationFilters['countries'])->first(
+            fn (array $option): bool => strcasecmp((string) $option['value'], $countryFilter) === 0
+        );
+        $selectedRegionOption = $countryOption
+            ? collect($locationFilters['regions'])->first(
+                fn (array $option): bool => strcasecmp((string) $option['country'], (string) $countryOption['value']) === 0
+                    && strcasecmp((string) $option['value'], $regionFilter) === 0
+            )
+            : null;
+        $countryFilter = $countryOption ? (string) $countryOption['value'] : '';
+        $regionFilter = $selectedRegionOption ? (string) $selectedRegionOption['value'] : '';
 
         $timeContextRun = $scanRunId
             ? LeadScanRun::query()->find($scanRunId)
@@ -249,8 +324,12 @@ class LeadController extends Controller
         $scope = BusinessLead::query()
             ->when($scanRunId, fn ($query) => $query->whereHas('scanRuns', fn ($runQuery) => $runQuery->whereKey($scanRunId)));
 
-        if ($selectedMarket) {
-            $this->applyMarketFilter($scope, $selectedMarket);
+        if ($countryOption) {
+            $this->applyCountryFilter($scope, $countryOption);
+        }
+
+        if ($selectedRegionOption) {
+            $this->applyRegionFilter($scope, $selectedRegionOption);
         }
 
         if ($websiteAgeFilter === 'new_30d'
@@ -270,7 +349,8 @@ class LeadController extends Controller
         return view('leads.show', [
             'lead' => $businessLead,
             'scanRunId' => $scanRunId,
-            'marketFilter' => $marketFilter,
+            'countryFilter' => $countryFilter,
+            'regionFilter' => $regionFilter,
             'websiteAgeFilter' => $websiteAgeFilter,
             'previousLead' => $previousLead,
             'nextLead' => $nextLead,
@@ -296,9 +376,8 @@ class LeadController extends Controller
             ->route('leads.show', [
                 'businessLead' => $businessLead,
                 'scan_run' => $request->integer('scan_run') ?: null,
-                'market' => $this->configuredMarket(trim((string) $request->input('market', '')))
-                    ? trim((string) $request->input('market'))
-                    : null,
+                'country' => trim((string) $request->input('country', '')) ?: null,
+                'region' => trim((string) $request->input('region', '')) ?: null,
                 'website_age' => $request->input('website_age') === 'new_30d' ? 'new_30d' : null,
             ])
             ->with('status', 'Lead note saved.');
@@ -309,7 +388,8 @@ class LeadController extends Controller
         return Schema::hasTable('lead_scan_runs')
             && Schema::hasTable('business_leads')
             && Schema::hasTable('lead_emails')
-            && Schema::hasTable('lead_phone_numbers');
+            && Schema::hasTable('lead_phone_numbers')
+            && Schema::hasTable('lead_scan_run_business_lead');
     }
 
     protected function normalizePhoneNumber(?string $phoneNumber): string
@@ -333,29 +413,160 @@ class LeadController extends Controller
         );
     }
 
-    protected function applyMarketFilter(Builder $query, array $selectedMarket): void
+    /**
+     * @return array{
+     *     countries: array<int, array{value: string, label: string, count: int, locations: array<int, string>, aliases: array<int, string>}>,
+     *     regions: array<int, array{country: string, value: string, label: string, count: int, locations: array<int, string>}>
+     * }
+     */
+    protected function availableLocationFilters(LeadLocationResolver $resolver): array
     {
-        $marketTerms = collect([
-            $selectedMarket['name'] ?? null,
-            ...(array) ($selectedMarket['aliases'] ?? []),
-        ])
-            ->map(fn ($term): string => trim((string) $term))
-            ->filter()
-            ->reject(fn (string $term): bool => strcasecmp($term, (string) ($selectedMarket['country'] ?? '')) === 0)
-            ->unique(fn (string $term): string => mb_strtolower($term))
+        $scanLocations = DB::table('lead_scan_run_business_lead')
+            ->join('lead_scan_runs', 'lead_scan_runs.id', '=', 'lead_scan_run_business_lead.lead_scan_run_id')
+            ->whereNotNull('lead_scan_runs.location')
+            ->where('lead_scan_runs.location', '!=', '')
+            ->selectRaw('lead_scan_runs.location as location, count(distinct lead_scan_run_business_lead.business_lead_id) as total')
+            ->groupBy('lead_scan_runs.location')
+            ->get();
+        $unlinkedLocations = DB::table('business_leads')
+            ->leftJoin('lead_scan_run_business_lead', 'lead_scan_run_business_lead.business_lead_id', '=', 'business_leads.id')
+            ->whereNull('lead_scan_run_business_lead.id')
+            ->whereNotNull('business_leads.city')
+            ->where('business_leads.city', '!=', '')
+            ->selectRaw('business_leads.city as location, count(*) as total')
+            ->groupBy('business_leads.city')
+            ->get();
+        $countries = [];
+        $regions = [];
+
+        foreach ($scanLocations->concat($unlinkedLocations) as $row) {
+            $location = trim((string) ($row->location ?? ''));
+            $total = max((int) ($row->total ?? 0), 0);
+            $description = $resolver->resolve($location);
+            $country = (string) ($description['country'] ?? '');
+            $region = (string) ($description['region'] ?? '');
+
+            if ($location === '' || $country === '') {
+                continue;
+            }
+
+            $countryKey = mb_strtolower($country);
+            $countries[$countryKey] ??= [
+                'value' => $country,
+                'label' => $country,
+                'count' => 0,
+                'locations' => [],
+                'aliases' => array_values(array_unique([
+                    $country,
+                    ...(array) config('lead-markets.country_aliases.'.$country, []),
+                ])),
+            ];
+            $countries[$countryKey]['count'] += $total;
+            $countries[$countryKey]['locations'][] = $location;
+
+            if ($region === '') {
+                continue;
+            }
+
+            $regionKey = $countryKey.'|'.mb_strtolower($region);
+            $regions[$regionKey] ??= [
+                'country' => $country,
+                'value' => $region,
+                'label' => $region,
+                'count' => 0,
+                'locations' => [],
+            ];
+            $regions[$regionKey]['count'] += $total;
+            $regions[$regionKey]['locations'][] = $location;
+        }
+
+        $countries = array_values(array_map(function (array $country): array {
+            $country['locations'] = array_values(array_unique($country['locations']));
+
+            return $country;
+        }, $countries));
+        $regions = array_values(array_map(function (array $region): array {
+            $region['locations'] = array_values(array_unique($region['locations']));
+
+            return $region;
+        }, $regions));
+        usort($countries, fn (array $left, array $right): int => strcasecmp($left['label'], $right['label']));
+        usort($regions, function (array $left, array $right): int {
+            $countryOrder = strcasecmp($left['country'], $right['country']);
+
+            return $countryOrder !== 0 ? $countryOrder : strcasecmp($left['label'], $right['label']);
+        });
+
+        return ['countries' => $countries, 'regions' => $regions];
+    }
+
+    /** @param array{locations: array<int, string>, aliases: array<int, string>} $country */
+    protected function applyCountryFilter(Builder $query, array $country): void
+    {
+        $locations = array_values(array_filter((array) ($country['locations'] ?? [])));
+        $searchTerms = collect((array) ($country['aliases'] ?? []))
+            ->map(fn ($term): string => mb_strtolower(trim((string) $term)))
+            ->filter(fn (string $term): bool => mb_strlen($term) > 2)
+            ->unique()
             ->values();
 
-        $query->where(function (Builder $query) use ($selectedMarket, $marketTerms): void {
-            $query->whereHas('scanRuns', function (Builder $scanQuery) use ($selectedMarket): void {
-                $scanQuery->where('location', (string) $selectedMarket['location']);
-            });
+        $query->where(function (Builder $query) use ($locations, $searchTerms): void {
+            if ($locations !== []) {
+                $query->whereHas('scanRuns', fn (Builder $scanQuery) => $scanQuery->whereIn('location', $locations))
+                    ->orWhereIn('city', $locations);
+            }
 
-            foreach ($marketTerms as $term) {
+            foreach ($searchTerms as $term) {
                 $like = '%'.$term.'%';
-                $query->orWhere('city', 'like', $like)
-                    ->orWhere('address', 'like', $like);
+                $query->orWhereRaw("LOWER(COALESCE(city, '')) LIKE ?", [$like])
+                    ->orWhereRaw("LOWER(COALESCE(address, '')) LIKE ?", [$like]);
             }
         });
+    }
+
+    /** @param array{value: string, locations: array<int, string>} $region */
+    protected function applyRegionFilter(Builder $query, array $region): void
+    {
+        $locations = array_values(array_filter((array) ($region['locations'] ?? [])));
+        $regionName = mb_strtolower(trim((string) ($region['value'] ?? '')));
+
+        $query->where(function (Builder $query) use ($locations, $regionName): void {
+            if ($locations !== []) {
+                $query->whereHas('scanRuns', fn (Builder $scanQuery) => $scanQuery->whereIn('location', $locations))
+                    ->orWhereIn('city', $locations);
+            }
+
+            if ($regionName !== '') {
+                $like = '%'.$regionName.'%';
+                $query->orWhereRaw("LOWER(COALESCE(city, '')) LIKE ?", [$like])
+                    ->orWhereRaw("LOWER(COALESCE(address, '')) LIKE ?", [$like]);
+            }
+        });
+    }
+
+    /** @return array{location: string|null, timezone: string|null} */
+    protected function leadLocalTimeContext(BusinessLead $lead, LeadLocationResolver $resolver): array
+    {
+        $city = trim((string) $lead->city);
+        $candidates = collect([
+            str_contains($city, ',') ? $city : null,
+            $lead->getAttribute('time_location'),
+            $city,
+            $lead->address,
+        ])
+            ->map(fn ($location): string => trim((string) $location))
+            ->filter()
+            ->unique();
+
+        foreach ($candidates as $location) {
+            $timezone = $resolver->resolve($location)['timezone'];
+
+            if ($timezone !== null) {
+                return ['location' => $location, 'timezone' => $timezone];
+            }
+        }
+
+        return ['location' => $candidates->first(), 'timezone' => null];
     }
 
     protected function applyWebsiteAgeFilter(Builder $query): void

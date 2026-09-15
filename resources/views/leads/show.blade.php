@@ -56,20 +56,20 @@
             <x-market-local-time :location="$timeContextRun->location" :timezone="$batchTimezone" />
         @endif
         <p>
-            <a class="button-link" href="{{ route('leads.index', ['scan_run' => $scanRunId, 'market' => $marketFilter ?: null, 'website_age' => $websiteAgeFilter ?: null]) }}">Back to Leads</a>
+            <a class="button-link" href="{{ route('leads.index', ['scan_run' => $scanRunId, 'country' => $countryFilter ?: null, 'region' => $regionFilter ?: null, 'website_age' => $websiteAgeFilter ?: null]) }}">Back to Leads</a>
             <a class="button-link" href="{{ route('leads.discovery.index') }}">Lead Discovery</a>
             <a class="button-link" href="{{ route('zoom-phone.index') }}" style="background:#2563eb;">Zoom Phone</a>
         </p>
 
         <div class="lead-nav">
             @if ($previousLead)
-                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $previousLead, 'scan_run' => $scanRunId, 'market' => $marketFilter ?: null, 'website_age' => $websiteAgeFilter ?: null]) }}">← Previous lead</a>
+                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $previousLead, 'scan_run' => $scanRunId, 'country' => $countryFilter ?: null, 'region' => $regionFilter ?: null, 'website_age' => $websiteAgeFilter ?: null]) }}">← Previous lead</a>
             @else
                 <span class="button-link disabled">← Previous lead</span>
             @endif
 
             @if ($nextLead)
-                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $nextLead, 'scan_run' => $scanRunId, 'market' => $marketFilter ?: null, 'website_age' => $websiteAgeFilter ?: null]) }}">Next lead →</a>
+                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $nextLead, 'scan_run' => $scanRunId, 'country' => $countryFilter ?: null, 'region' => $regionFilter ?: null, 'website_age' => $websiteAgeFilter ?: null]) }}">Next lead →</a>
             @else
                 <span class="button-link disabled">Next lead →</span>
             @endif
@@ -232,8 +232,11 @@
             @if ($scanRunId)
                 <input type="hidden" name="scan_run" value="{{ $scanRunId }}">
             @endif
-            @if (filled($marketFilter ?? ''))
-                <input type="hidden" name="market" value="{{ $marketFilter }}">
+            @if (filled($countryFilter ?? ''))
+                <input type="hidden" name="country" value="{{ $countryFilter }}">
+            @endif
+            @if (filled($regionFilter ?? ''))
+                <input type="hidden" name="region" value="{{ $regionFilter }}">
             @endif
             @if (filled($websiteAgeFilter ?? ''))
                 <input type="hidden" name="website_age" value="{{ $websiteAgeFilter }}">

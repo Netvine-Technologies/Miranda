@@ -8,6 +8,55 @@ return [
         'end' => 17,
     ],
 
+    'country_aliases' => [
+        'United States' => ['USA', 'US', 'United States of America'],
+        'Canada' => [],
+        'United Kingdom' => ['UK', 'England', 'Scotland', 'Wales'],
+        'Ireland' => [],
+        'Australia' => [],
+        'New Zealand' => ['NZ'],
+        'Singapore' => [],
+        'South Africa' => [],
+        'Bermuda' => [],
+        'Malta' => [],
+        'Netherlands' => [],
+        'Denmark' => [],
+        'Portugal' => [],
+        'Jamaica' => [],
+        'Nigeria' => [],
+        'Ghana' => [],
+        'Philippines' => [],
+    ],
+
+    'country_regions' => [
+        'United States' => [
+            'AL', 'Alabama', 'AK', 'Alaska', 'AZ', 'Arizona', 'AR', 'Arkansas',
+            'CA', 'California', 'CO', 'Colorado', 'CT', 'Connecticut', 'DE', 'Delaware',
+            'DC', 'District of Columbia', 'FL', 'Florida', 'GA', 'Georgia', 'HI', 'Hawaii',
+            'ID', 'Idaho', 'IL', 'Illinois', 'IN', 'Indiana', 'IA', 'Iowa', 'KS', 'Kansas',
+            'KY', 'Kentucky', 'LA', 'Louisiana', 'ME', 'Maine', 'MD', 'Maryland',
+            'MA', 'Massachusetts', 'MI', 'Michigan', 'MN', 'Minnesota', 'MS', 'Mississippi',
+            'MO', 'Missouri', 'MT', 'Montana', 'NE', 'Nebraska', 'NV', 'Nevada',
+            'NH', 'New Hampshire', 'NJ', 'New Jersey', 'NM', 'New Mexico', 'NY', 'New York',
+            'NC', 'North Carolina', 'ND', 'North Dakota', 'OH', 'Ohio', 'OK', 'Oklahoma',
+            'OR', 'Oregon', 'PA', 'Pennsylvania', 'RI', 'Rhode Island', 'SC', 'South Carolina',
+            'SD', 'South Dakota', 'TN', 'Tennessee', 'TX', 'Texas', 'UT', 'Utah',
+            'VT', 'Vermont', 'VA', 'Virginia', 'WA', 'Washington', 'WV', 'West Virginia',
+            'WI', 'Wisconsin', 'WY', 'Wyoming',
+        ],
+        'Canada' => [
+            'AB', 'Alberta', 'BC', 'British Columbia', 'MB', 'Manitoba', 'NB', 'New Brunswick',
+            'NL', 'Newfoundland and Labrador', 'NS', 'Nova Scotia', 'NT', 'Northwest Territories',
+            'NU', 'Nunavut', 'ON', 'Ontario', 'PE', 'Prince Edward Island', 'QC', 'Quebec',
+            'SK', 'Saskatchewan', 'YT', 'Yukon',
+        ],
+        'Australia' => [
+            'NSW', 'New South Wales', 'VIC', 'Victoria', 'QLD', 'Queensland',
+            'Western Australia', 'South Australia', 'TAS', 'Tasmania',
+            'Northern Territory', 'ACT', 'Australian Capital Territory',
+        ],
+    ],
+
     /*
     | Timezone lookup data used by lead batch clocks. The market list below is
     | intentionally curated for the discovery overview; these broader maps let
@@ -70,6 +119,15 @@ return [
         'washington' => 'America/New_York',
         'wellington' => 'Pacific/Auckland',
         'winnipeg' => 'America/Winnipeg',
+    ],
+
+    // Disambiguate city names when a scan stores a country but no state or province.
+    'city_country_timezones' => [
+        'birmingham united states' => 'America/Chicago',
+        'london canada' => 'America/Toronto',
+        'manchester united states' => 'America/New_York',
+        'melbourne united states' => 'America/New_York',
+        'washington united states' => 'America/New_York',
     ],
 
     'region_timezones' => [
@@ -158,6 +216,12 @@ return [
         'uk' => 'Europe/London',
         'ireland' => 'Europe/Dublin',
         'new zealand' => 'Pacific/Auckland',
+        'netherlands' => 'Europe/Amsterdam',
+        'denmark' => 'Europe/Copenhagen',
+        'portugal' => 'Europe/Lisbon',
+        'south africa' => 'Africa/Johannesburg',
+        'bermuda' => 'Atlantic/Bermuda',
+        'malta' => 'Europe/Malta',
         'jamaica' => 'America/Jamaica',
         'nigeria' => 'Africa/Lagos',
         'ghana' => 'Africa/Accra',

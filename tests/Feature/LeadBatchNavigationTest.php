@@ -120,6 +120,62 @@ class LeadBatchNavigationTest extends TestCase
             ->assertDontSee('Reception Only Plumber');
     }
 
+    public function test_country_and_region_filters_use_available_lead_locations_and_show_each_leads_local_time(): void
+    {
+        $user = User::factory()->create();
+        $torontoRun = LeadScanRun::create([
+            'query' => 'restaurant',
+            'location' => 'Toronto, Canada',
+            'status' => LeadScanRun::STATUS_COMPLETED,
+        ]);
+        $phoenixRun = LeadScanRun::create([
+            'query' => 'plumber',
+            'location' => 'Phoenix, AZ',
+            'status' => LeadScanRun::STATUS_COMPLETED,
+        ]);
+        $londonCanadaRun = LeadScanRun::create([
+            'query' => 'restaurant',
+            'location' => 'London, Canada',
+            'status' => LeadScanRun::STATUS_COMPLETED,
+        ]);
+        $torontoLead = BusinessLead::create([
+            'name' => 'Toronto Table',
+            'place_id' => 'toronto-table',
+            'city' => 'Canada',
+        ]);
+        $phoenixLead = BusinessLead::create([
+            'name' => 'Phoenix Pipes',
+            'place_id' => 'phoenix-pipes',
+            'city' => 'United States',
+        ]);
+        $londonCanadaLead = BusinessLead::create([
+            'name' => 'London Ontario Table',
+            'place_id' => 'london-ontario-table',
+            'city' => 'London, Canada',
+        ]);
+        $torontoRun->businessLeads()->attach($torontoLead);
+        $phoenixRun->businessLeads()->attach($phoenixLead);
+        $londonCanadaRun->businessLeads()->attach($londonCanadaLead);
+
+        $this->actingAs($user)
+            ->get(route('leads.index', ['country' => 'Canada', 'region' => 'Toronto']))
+            ->assertOk()
+            ->assertSee('Toronto Table')
+            ->assertDontSee('Phoenix Pipes')
+            ->assertDontSee('London Ontario Table')
+            ->assertSee('value="Canada" selected', false)
+            ->assertSee('value="Toronto" selected', false)
+            ->assertSee('data-lead-clock', false)
+            ->assertSee('data-timezone="America/Toronto"', false);
+
+        $this->actingAs($user)
+            ->get(route('leads.index', ['country' => 'United States', 'region' => 'Phoenix']))
+            ->assertOk()
+            ->assertSee('Phoenix Pipes')
+            ->assertDontSee('Toronto Table')
+            ->assertSee('data-timezone="America/Phoenix"', false);
+    }
+
     public function test_all_batches_view_summarizes_daily_calls_and_saved_outcomes(): void
     {
         $user = User::factory()->create();
