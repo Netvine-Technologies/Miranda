@@ -52,8 +52,8 @@
         @foreach ((array) $lead->intent_tags as $intent)
             <span class="intent-chip">{{ config('leads.intent_tags.'.$intent, ucwords(str_replace('_', ' ', $intent))) }}</span>
         @endforeach
-        @if ($timeContextRun)
-            <x-market-local-time :location="$timeContextRun->location" :timezone="$batchTimezone" />
+        @if ($leadTimeLocation)
+            <x-market-local-time :location="$leadTimeLocation" :timezone="$leadTimezone" />
         @endif
         <p>
             <a class="button-link" href="{{ route('leads.index', ['scan_run' => $scanRunId, 'country' => $countryFilter ?: null, 'region' => $regionFilter ?: null, 'website_age' => $websiteAgeFilter ?: null]) }}">Back to Leads</a>

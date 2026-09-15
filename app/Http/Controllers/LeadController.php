@@ -305,7 +305,8 @@ class LeadController extends Controller
             $regionFilter = $regionFilter ?: (string) ($selectedMarket['name'] ?? '');
         }
 
-        $locationFilters = $this->availableLocationFilters(app(LeadLocationResolver::class));
+        $locationResolver = app(LeadLocationResolver::class);
+        $locationFilters = $this->availableLocationFilters($locationResolver);
         $countryOption = collect($locationFilters['countries'])->first(
             fn (array $option): bool => strcasecmp((string) $option['value'], $countryFilter) === 0
         );
@@ -321,6 +322,8 @@ class LeadController extends Controller
         $timeContextRun = $scanRunId
             ? LeadScanRun::query()->find($scanRunId)
             : $businessLead->scanRuns()->latest('lead_scan_runs.id')->first();
+        $businessLead->setAttribute('time_location', $timeContextRun?->location);
+        $leadTimeContext = $this->leadLocalTimeContext($businessLead, $locationResolver);
         $scope = BusinessLead::query()
             ->when($scanRunId, fn ($query) => $query->whereHas('scanRuns', fn ($runQuery) => $runQuery->whereKey($scanRunId)));
 
@@ -354,8 +357,8 @@ class LeadController extends Controller
             'websiteAgeFilter' => $websiteAgeFilter,
             'previousLead' => $previousLead,
             'nextLead' => $nextLead,
-            'timeContextRun' => $timeContextRun,
-            'batchTimezone' => $this->timezoneForLocation($timeContextRun?->location),
+            'leadTimeLocation' => $leadTimeContext['location'],
+            'leadTimezone' => $leadTimeContext['timezone'],
         ]);
     }
 

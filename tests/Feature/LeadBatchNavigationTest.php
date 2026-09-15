@@ -97,6 +97,23 @@ class LeadBatchNavigationTest extends TestCase
         $this->assertSame(2, substr_count($response->getContent(), '+61 469 741 282'));
     }
 
+    public function test_lead_detail_shows_local_time_from_the_leads_city_without_a_batch_parameter(): void
+    {
+        $user = User::factory()->create();
+        $lead = BusinessLead::create([
+            'name' => 'Gold Canyon Garage Door',
+            'place_id' => 'gold-canyon-garage-door',
+            'city' => 'Gold Canyon, AZ, United States',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('leads.show', $lead))
+            ->assertOk()
+            ->assertSee('Gold Canyon, AZ, United States')
+            ->assertSee('data-timezone="America/Phoenix"', false)
+            ->assertSee('Checking local time');
+    }
+
     public function test_leads_can_be_filtered_by_multi_value_intent_tags(): void
     {
         $user = User::factory()->create();
