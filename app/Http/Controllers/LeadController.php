@@ -611,16 +611,6 @@ class LeadController extends Controller
         }
 
         $calls = ZoomCallLog::query()
-            ->with([
-                'businessLead:id,name',
-                'businessLead.latestNote' => fn ($query) => $query->select([
-                    'lead_notes.id',
-                    'lead_notes.business_lead_id',
-                    'lead_notes.outcome',
-                    'lead_notes.body',
-                    'lead_notes.created_at',
-                ]),
-            ])
             ->where('direction', 'outbound')
             ->whereNotNull('external_number')
             ->where('occurred_at', '>=', $day->copy()->utc())
@@ -636,31 +626,38 @@ class LeadController extends Controller
         $outcomeKeys = collect(LeadNote::OUTCOMES)->push('not_set');
         $outcomeCounts = $outcomeKeys->mapWithKeys(fn (string $outcome): array => [$outcome => 0]);
         $answeredOutcomeCounts = $outcomeKeys->mapWithKeys(fn (string $outcome): array => [$outcome => 0]);
-        $answeredNumbers = 0;
+        $dailyOutcomes = LeadNote::query()
+            ->where('created_at', '>=', $day->copy()->utc())
+            ->where('created_at', '<', $day->copy()->addDay()->utc())
+            ->latest('created_at')
+            ->latest('id')
+            ->get()
+            ->unique('business_lead_id')
+            ->values();
+        $answeredOutcomes = 0;
 
-        foreach ($uniqueCalls as $group) {
-            /** @var ZoomCallLog $latestCall */
-            $latestCall = $group->first();
-            $outcome = $latestCall->businessLead?->latestNote?->outcome;
+        foreach ($dailyOutcomes as $note) {
+            $outcome = $note->outcome;
             $key = in_array($outcome, LeadNote::OUTCOMES, true) ? $outcome : 'not_set';
             $outcomeCounts[$key] = ((int) $outcomeCounts[$key]) + 1;
 
             if (in_array($key, ['contacted', 'keen', 'follow_up', 'not_interested'], true)) {
-                $answeredNumbers++;
+                $answeredOutcomes++;
                 $answeredOutcomeCounts[$key] = ((int) $answeredOutcomeCounts[$key]) + 1;
             }
         }
 
         $uniqueNumbers = $uniqueCalls->count();
-        $outcomeBreakdown = $outcomeKeys->mapWithKeys(function (string $outcome) use ($outcomeCounts, $answeredOutcomeCounts, $uniqueNumbers, $answeredNumbers): array {
+        $savedOutcomes = $dailyOutcomes->count();
+        $outcomeBreakdown = $outcomeKeys->mapWithKeys(function (string $outcome) use ($outcomeCounts, $answeredOutcomeCounts, $savedOutcomes, $answeredOutcomes): array {
             $count = (int) $outcomeCounts[$outcome];
             $answeredCount = (int) $answeredOutcomeCounts[$outcome];
 
             return [$outcome => [
                 'count' => $count,
-                'all_rate' => $uniqueNumbers > 0 ? round(($count / $uniqueNumbers) * 100, 1) : 0.0,
+                'all_rate' => $savedOutcomes > 0 ? round(($count / $savedOutcomes) * 100, 1) : 0.0,
                 'answered_count' => $answeredCount,
-                'answered_rate' => $answeredNumbers > 0 ? round(($answeredCount / $answeredNumbers) * 100, 1) : 0.0,
+                'answered_rate' => $answeredOutcomes > 0 ? round(($answeredCount / $answeredOutcomes) * 100, 1) : 0.0,
             ]];
         });
 
@@ -670,9 +667,9 @@ class LeadController extends Controller
             'timezone' => $timezone,
             'unique_numbers' => $uniqueNumbers,
             'call_attempts' => $calls->count(),
-            'answered_numbers' => $answeredNumbers,
-            'answered_rate' => $uniqueNumbers > 0 ? round(($answeredNumbers / $uniqueNumbers) * 100, 1) : 0.0,
-            'outcomes_saved' => $outcomeCounts->except('not_set')->sum(),
+            'answered_numbers' => $answeredOutcomes,
+            'answered_rate' => $savedOutcomes > 0 ? round(($answeredOutcomes / $savedOutcomes) * 100, 1) : 0.0,
+            'outcomes_saved' => $savedOutcomes,
             'outcome_breakdown' => $outcomeBreakdown,
         ];
     }

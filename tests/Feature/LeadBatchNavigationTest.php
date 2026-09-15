@@ -204,19 +204,36 @@ class LeadBatchNavigationTest extends TestCase
             'name' => 'No Answer Studio',
             'place_id' => 'daily-no-answer',
         ]);
+        $followUpLead = BusinessLead::create([
+            'name' => 'Manual Follow Up Studio',
+            'place_id' => 'daily-manual-follow-up',
+        ]);
 
-        LeadNote::create([
+        $keenNote = LeadNote::create([
             'business_lead_id' => $keenLead->id,
             'user_id' => $user->id,
             'outcome' => 'keen',
             'body' => 'Asked for pricing.',
         ]);
-        LeadNote::create([
+        $noAnswerNote = LeadNote::create([
             'business_lead_id' => $noAnswerLead->id,
             'user_id' => $user->id,
             'outcome' => 'no_answer',
             'body' => '',
         ]);
+        $followUpNote = LeadNote::create([
+            'business_lead_id' => $followUpLead->id,
+            'user_id' => $user->id,
+            'outcome' => 'follow_up',
+            'body' => 'Call again on Friday.',
+        ]);
+
+        foreach ([$keenNote, $noAnswerNote, $followUpNote] as $note) {
+            $note->forceFill([
+                'created_at' => '2026-08-18 12:00:00',
+                'updated_at' => '2026-08-18 12:00:00',
+            ])->save();
+        }
 
         foreach ([
             ['daily-1', $keenLead, '+61 400 000 001', 'outbound', 'hang_up', '09:00:00'],
@@ -240,10 +257,11 @@ class LeadBatchNavigationTest extends TestCase
             ->assertOk()
             ->assertSee('Daily Call Activity')
             ->assertSee('Tuesday, 18 August 2026')
-            ->assertSeeInOrder(['2', 'Unique numbers called', '3', 'Total call attempts', '1', 'Answered contacts', '50.0%', '2', 'Contacts with outcomes'])
+            ->assertSeeInOrder(['2', 'Unique numbers called', '3', 'Total call attempts', '2', 'Answered outcomes', '66.7%', '3', 'Leads with outcomes'])
             ->assertSee('Keen')
+            ->assertSee('Follow Up')
             ->assertSee('No Answer')
-            ->assertSee('100.0%')
-            ->assertSee('0.0%');
+            ->assertSee('50.0%')
+            ->assertSee('33.3%');
     }
 }

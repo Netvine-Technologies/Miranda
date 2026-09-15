@@ -355,24 +355,24 @@
                         </div>
                         <div class="daily-metric">
                             <strong>{{ number_format($dailyCallSummary['answered_numbers']) }}</strong>
-                            <span>Answered contacts · {{ number_format($dailyCallSummary['answered_rate'], 1) }}%</span>
+                            <span>Answered outcomes · {{ number_format($dailyCallSummary['answered_rate'], 1) }}% of saved</span>
                         </div>
                         <div class="daily-metric">
                             <strong>{{ number_format($dailyCallSummary['outcomes_saved']) }}</strong>
-                            <span>Contacts with outcomes</span>
+                            <span>Leads with outcomes</span>
                         </div>
                     </div>
 
                     <h3 style="margin:20px 0 0;">Saved outcome breakdown</h3>
-                    <p class="muted" style="margin:5px 0 0;">One outcome per unique called number. Answered contacts are human-confirmed outcomes: Contacted, Keen, Follow Up, or Not Interested.</p>
+                    <p class="muted" style="margin:5px 0 0;">Latest outcome saved per lead on this date, including manually updated leads without a matched Zoom call. Answered outcomes are Contacted, Keen, Follow Up, or Not Interested.</p>
                     <div class="outcome-grid">
                         @foreach ($dailyCallSummary['outcome_breakdown'] as $outcome => $breakdown)
                             <div class="outcome-stat">
                                 <strong>{{ number_format($breakdown['count']) }}</strong>
                                 <span>{{ $outcome === 'not_set' ? 'Not set' : ucwords(str_replace('_', ' ', $outcome)) }}</span>
                                 <div class="conversion-rate">
-                                    <div><b>{{ number_format($breakdown['all_rate'], 1) }}%</b> of all numbers</div>
-                                    <div><b>{{ number_format($breakdown['answered_rate'], 1) }}%</b> of answered contacts</div>
+                                    <div><b>{{ number_format($breakdown['all_rate'], 1) }}%</b> of saved outcomes</div>
+                                    <div><b>{{ number_format($breakdown['answered_rate'], 1) }}%</b> of answered outcomes</div>
                                 </div>
                             </div>
                         @endforeach
