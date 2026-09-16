@@ -51,6 +51,11 @@ class LeadController extends Controller
         $batchTimezone = null;
         $batchCallSummary = collect();
         $dailyCallSummary = null;
+        $outcomeLeads = null;
+        $activityOutcome = in_array($request->query('activity_outcome'), LeadNote::OUTCOMES, true)
+            ? (string) $request->query('activity_outcome')
+            : '';
+        $activityScope = $request->query('activity_scope') === 'all' ? 'all' : 'day';
         $monthlyCostRows = collect();
         $pricing = [
             'text_search_pro_per_1000' => (float) config('leads.pricing.text_search_pro_per_1000', 32.0),
@@ -212,6 +217,19 @@ class LeadController extends Controller
                 }
             } elseif (Schema::hasTable('zoom_call_logs')) {
                 $dailyCallSummary = $this->dailyCallSummary((string) $request->query('activity_date', ''));
+
+                if ($activityOutcome !== '') {
+                    $activityDay = $activityScope === 'day'
+                        ? $this->activityDay($dailyCallSummary['date'])
+                        : null;
+                    $outcomeLeads = $this->latestOutcomeNotes($activityDay)
+                        ->where('outcome', $activityOutcome)
+                        ->with('businessLead:id,name,city,phone,mobile_phone')
+                        ->latest('created_at')
+                        ->latest('id')
+                        ->paginate(20, ['*'], 'outcome_page')
+                        ->withQueryString();
+                }
             }
 
             $runsQuery = LeadScanRun::query()
@@ -276,6 +294,9 @@ class LeadController extends Controller
             'batchTimezone' => $batchTimezone,
             'batchCallSummary' => $batchCallSummary,
             'dailyCallSummary' => $dailyCallSummary,
+            'outcomeLeads' => $outcomeLeads,
+            'activityOutcome' => $activityOutcome,
+            'activityScope' => $activityScope,
             'scanRuns' => $migrationReady ? LeadScanRun::query()->withCount('businessLeads')->orderByDesc('id')->limit(100)->get() : collect(),
             'monthlyCostRows' => $monthlyCostRows,
             'pricing' => $pricing,
@@ -297,6 +318,12 @@ class LeadController extends Controller
         $websiteAgeFilter = $request->query('website_age') === 'new_30d' ? 'new_30d' : '';
         $countryFilter = trim((string) $request->query('country', ''));
         $regionFilter = trim((string) $request->query('region', ''));
+        $activityOutcome = in_array($request->query('activity_outcome'), LeadNote::OUTCOMES, true)
+            ? (string) $request->query('activity_outcome')
+            : '';
+        $activityScope = $request->query('activity_scope') === 'all' ? 'all' : 'day';
+        $activityDate = $this->activityDay((string) $request->query('activity_date', ''))->toDateString();
+        $outcomePage = max($request->integer('outcome_page'), 1);
 
         if (! $selectedMarket) {
             $marketFilter = '';
@@ -340,6 +367,15 @@ class LeadController extends Controller
             $this->applyWebsiteAgeFilter($scope);
         }
 
+        if ($activityOutcome !== '') {
+            $activityDay = $activityScope === 'day'
+                ? $this->activityDay($activityDate)
+                : null;
+            $scope->whereIn('id', $this->latestOutcomeNotes($activityDay)
+                ->where('outcome', $activityOutcome)
+                ->select('business_lead_id'));
+        }
+
         $previousLead = (clone $scope)
             ->where('id', '>', $businessLead->id)
             ->orderBy('id')
@@ -355,6 +391,10 @@ class LeadController extends Controller
             'countryFilter' => $countryFilter,
             'regionFilter' => $regionFilter,
             'websiteAgeFilter' => $websiteAgeFilter,
+            'activityOutcome' => $activityOutcome,
+            'activityScope' => $activityScope,
+            'activityDate' => $activityDate,
+            'outcomePage' => $outcomePage,
             'previousLead' => $previousLead,
             'nextLead' => $nextLead,
             'leadTimeLocation' => $leadTimeContext['location'],
@@ -382,6 +422,16 @@ class LeadController extends Controller
                 'country' => trim((string) $request->input('country', '')) ?: null,
                 'region' => trim((string) $request->input('region', '')) ?: null,
                 'website_age' => $request->input('website_age') === 'new_30d' ? 'new_30d' : null,
+                'activity_outcome' => in_array($request->input('activity_outcome'), LeadNote::OUTCOMES, true)
+                    ? $request->input('activity_outcome')
+                    : null,
+                'activity_scope' => $request->input('activity_scope') === 'all' ? 'all' : null,
+                'activity_date' => in_array($request->input('activity_outcome'), LeadNote::OUTCOMES, true)
+                    ? $this->activityDay((string) $request->input('activity_date', ''))->toDateString()
+                    : null,
+                'outcome_page' => in_array($request->input('activity_outcome'), LeadNote::OUTCOMES, true)
+                    ? max($request->integer('outcome_page'), 1)
+                    : null,
             ])
             ->with('status', 'Lead note saved.');
     }
@@ -596,19 +646,7 @@ class LeadController extends Controller
     protected function dailyCallSummary(string $requestedDate): array
     {
         $timezone = (string) config('lead-markets.reporting_timezone', 'Europe/London');
-        $day = now($timezone)->startOfDay();
-
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $requestedDate) === 1) {
-            try {
-                $candidate = Carbon::createFromFormat('Y-m-d', $requestedDate, $timezone)->startOfDay();
-
-                if ($candidate->toDateString() === $requestedDate) {
-                    $day = $candidate;
-                }
-            } catch (\Throwable) {
-                // Fall back to today for invalid calendar dates.
-            }
-        }
+        $day = $this->activityDay($requestedDate);
 
         $calls = ZoomCallLog::query()
             ->where('direction', 'outbound')
@@ -626,14 +664,7 @@ class LeadController extends Controller
         $outcomeKeys = collect(LeadNote::OUTCOMES)->push('not_set');
         $outcomeCounts = $outcomeKeys->mapWithKeys(fn (string $outcome): array => [$outcome => 0]);
         $answeredOutcomeCounts = $outcomeKeys->mapWithKeys(fn (string $outcome): array => [$outcome => 0]);
-        $dailyOutcomes = LeadNote::query()
-            ->where('created_at', '>=', $day->copy()->utc())
-            ->where('created_at', '<', $day->copy()->addDay()->utc())
-            ->latest('created_at')
-            ->latest('id')
-            ->get()
-            ->unique('business_lead_id')
-            ->values();
+        $dailyOutcomes = $this->latestOutcomeNotes($day)->get();
         $answeredOutcomes = 0;
 
         foreach ($dailyOutcomes as $note) {
@@ -672,5 +703,53 @@ class LeadController extends Controller
             'outcomes_saved' => $savedOutcomes,
             'outcome_breakdown' => $outcomeBreakdown,
         ];
+    }
+
+    protected function activityDay(string $requestedDate): Carbon
+    {
+        $timezone = (string) config('lead-markets.reporting_timezone', 'Europe/London');
+        $day = now($timezone)->startOfDay();
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $requestedDate) !== 1) {
+            return $day;
+        }
+
+        try {
+            $candidate = Carbon::createFromFormat('Y-m-d', $requestedDate, $timezone)->startOfDay();
+
+            return $candidate->toDateString() === $requestedDate ? $candidate : $day;
+        } catch (\Throwable) {
+            return $day;
+        }
+    }
+
+    protected function latestOutcomeNotes(?Carbon $day): Builder
+    {
+        $start = $day?->copy()->utc();
+        $end = $day?->copy()->addDay()->utc();
+        $query = LeadNote::query();
+
+        if ($start && $end) {
+            $query->where('lead_notes.created_at', '>=', $start)
+                ->where('lead_notes.created_at', '<', $end);
+        }
+
+        return $query->whereNotExists(function ($newer) use ($start, $end): void {
+            $newer->selectRaw('1')
+                ->from('lead_notes as newer')
+                ->whereColumn('newer.business_lead_id', 'lead_notes.business_lead_id')
+                ->where(function ($order): void {
+                    $order->whereColumn('newer.created_at', '>', 'lead_notes.created_at')
+                        ->orWhere(function ($tie): void {
+                            $tie->whereColumn('newer.created_at', 'lead_notes.created_at')
+                                ->whereColumn('newer.id', '>', 'lead_notes.id');
+                        });
+                });
+
+            if ($start && $end) {
+                $newer->where('newer.created_at', '>=', $start)
+                    ->where('newer.created_at', '<', $end);
+            }
+        });
     }
 }

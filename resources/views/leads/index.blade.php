@@ -104,6 +104,15 @@
         .daily-metric span { color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
         .outcome-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 9px; margin-top: 12px; }
         .outcome-stat { padding: 11px 12px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; }
+        .outcome-stat.selected-outcome { border-color: #60a5fa; box-shadow: 0 0 0 2px #dbeafe; }
+        .outcome-stat-main { display: block; color: inherit; text-decoration: none; }
+        .outcome-stat-main:hover strong, .outcome-stat-main:focus-visible strong { color: #1d4ed8; }
+        .outcome-stat .outcome-stat-actions { display: block; margin-top: 10px; color: #1d4ed8; font-size: 12px; font-weight: 700; }
+        .outcome-stat-all { display: inline-block; margin-top: 9px; color: #1d4ed8; font-size: 12px; }
+        .outcome-leads { margin-top: 20px; padding: 17px; border: 1px solid #c7d2fe; border-radius: 12px; background: #fff; scroll-margin-top: 16px; }
+        .outcome-leads-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+        .outcome-leads-header h3 { margin: 0; }
+        .outcome-note-preview { max-width: 420px; white-space: normal; line-height: 1.4; }
         .outcome-stat strong { display: block; font-size: 20px; }
         .outcome-stat span { color: #64748b; font-size: 12px; }
         .conversion-rate { margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0; color: #475569; font-size: 12px; line-height: 1.5; }
@@ -336,6 +345,12 @@
                             @if (filled($websiteAgeFilter ?? ''))
                                 <input type="hidden" name="website_age" value="{{ $websiteAgeFilter }}">
                             @endif
+                            @if (($activityOutcome ?? '') !== '')
+                                <input type="hidden" name="activity_outcome" value="{{ $activityOutcome }}">
+                                @if (($activityScope ?? 'day') === 'all')
+                                    <input type="hidden" name="activity_scope" value="all">
+                                @endif
+                            @endif
                             <div>
                                 <label for="activity_date">Activity date</label>
                                 <input id="activity_date" type="date" name="activity_date" value="{{ $dailyCallSummary['date'] }}">
@@ -363,20 +378,78 @@
                         </div>
                     </div>
 
-                    <h3 style="margin:20px 0 0;">Saved outcome breakdown</h3>
+                    <h3 id="outcome-breakdown" style="margin:20px 0 0;">Saved outcome breakdown</h3>
                     <p class="muted" style="margin:5px 0 0;">Latest outcome saved per lead on this date, including manually updated leads without a matched Zoom call. Answered outcomes are Contacted, Keen, Follow Up, or Not Interested.</p>
                     <div class="outcome-grid">
                         @foreach ($dailyCallSummary['outcome_breakdown'] as $outcome => $breakdown)
-                            <div class="outcome-stat">
-                                <strong>{{ number_format($breakdown['count']) }}</strong>
-                                <span>{{ $outcome === 'not_set' ? 'Not set' : ucwords(str_replace('_', ' ', $outcome)) }}</span>
-                                <div class="conversion-rate">
-                                    <div><b>{{ number_format($breakdown['all_rate'], 1) }}%</b> of saved outcomes</div>
-                                    <div><b>{{ number_format($breakdown['answered_rate'], 1) }}%</b> of answered outcomes</div>
-                                </div>
+                            <div class="outcome-stat {{ ($activityOutcome ?? '') === $outcome && ($activityScope ?? 'day') === 'day' ? 'selected-outcome' : '' }}">
+                                @if ($outcome === 'not_set')
+                                    <strong>{{ number_format($breakdown['count']) }}</strong>
+                                    <span>Not set</span>
+                                    <div class="conversion-rate">
+                                        <div><b>{{ number_format($breakdown['all_rate'], 1) }}%</b> of saved outcomes</div>
+                                        <div><b>{{ number_format($breakdown['answered_rate'], 1) }}%</b> of answered outcomes</div>
+                                    </div>
+                                @else
+                                    <a class="outcome-stat-main" href="{{ route('leads.index', ['activity_date' => $dailyCallSummary['date'], 'activity_outcome' => $outcome]) }}#outcome-leads">
+                                        <strong>{{ number_format($breakdown['count']) }}</strong>
+                                        <span>{{ ucwords(str_replace('_', ' ', $outcome)) }}</span>
+                                        <div class="conversion-rate">
+                                            <div><b>{{ number_format($breakdown['all_rate'], 1) }}%</b> of saved outcomes</div>
+                                            <div><b>{{ number_format($breakdown['answered_rate'], 1) }}%</b> of answered outcomes</div>
+                                        </div>
+                                        <span class="outcome-stat-actions">View this day's leads →</span>
+                                    </a>
+                                    <a class="outcome-stat-all" href="{{ route('leads.index', ['activity_date' => $dailyCallSummary['date'], 'activity_outcome' => $outcome, 'activity_scope' => 'all']) }}#outcome-leads">View all current {{ ucwords(str_replace('_', ' ', $outcome)) }} leads</a>
+                                @endif
                             </div>
                         @endforeach
                     </div>
+
+                    @if (($activityOutcome ?? '') !== '' && ($outcomeLeads ?? null) !== null)
+                        <section id="outcome-leads" class="outcome-leads">
+                            <div class="outcome-leads-header">
+                                <div>
+                                    <h3>{{ ucwords(str_replace('_', ' ', $activityOutcome)) }} leads</h3>
+                                    <p class="muted" style="margin:5px 0 0;">
+                                        @if (($activityScope ?? 'day') === 'all')
+                                            Current latest outcome, across all dates
+                                        @else
+                                            Latest outcome saved on {{ $dailyCallSummary['date_label'] }}
+                                        @endif
+                                        · {{ number_format($outcomeLeads->total()) }} {{ \Illuminate\Support\Str::plural('lead', $outcomeLeads->total()) }}
+                                    </p>
+                                </div>
+                                <a class="button-link" href="{{ route('leads.index', ['activity_date' => $dailyCallSummary['date']]) }}#outcome-breakdown" style="background:#334155;">Clear selection</a>
+                            </div>
+                            <table>
+                                <thead><tr><th>Lead</th><th>Saved outcome</th><th>Note</th><th></th></tr></thead>
+                                <tbody>
+                                @forelse ($outcomeLeads as $note)
+                                    <tr>
+                                        <td>
+                                            <strong>{{ $note->businessLead?->name ?? 'Lead unavailable' }}</strong>
+                                            <div class="muted">{{ $note->businessLead?->city ?: 'Location unavailable' }}</div>
+                                        </td>
+                                        <td>
+                                            <span class="outcome-badge outcome-{{ $note->outcome }}">{{ ucwords(str_replace('_', ' ', $note->outcome)) }}</span>
+                                            <div class="muted" style="margin-top:6px;">{{ $note->created_at?->timezone($dailyCallSummary['timezone'])->format('d M Y, H:i') }} UK</div>
+                                        </td>
+                                        <td class="outcome-note-preview">{{ filled($note->body) ? \Illuminate\Support\Str::limit($note->body, 180) : 'No note added.' }}</td>
+                                        <td>
+                                            @if ($note->businessLead)
+                                                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $note->businessLead, 'activity_date' => $dailyCallSummary['date'], 'activity_outcome' => $activityOutcome, 'activity_scope' => $activityScope === 'all' ? 'all' : null, 'outcome_page' => $outcomeLeads->currentPage() > 1 ? $outcomeLeads->currentPage() : null]) }}">View lead</a>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="4" class="empty-leads">No {{ ucwords(str_replace('_', ' ', $activityOutcome)) }} leads found for this selection.</td></tr>
+                                @endforelse
+                                </tbody>
+                            </table>
+                            <div style="margin-top:14px;">{{ $outcomeLeads->fragment('outcome-leads')->links() }}</div>
+                        </section>
+                    @endif
                 </section>
             @endif
 

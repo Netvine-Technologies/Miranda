@@ -55,21 +55,27 @@
         @if ($leadTimeLocation)
             <x-market-local-time :location="$leadTimeLocation" :timezone="$leadTimezone" />
         @endif
+        @if ($activityOutcome !== '')
+            <p class="muted" style="margin:12px 0 0;">
+                Browsing {{ ucwords(str_replace('_', ' ', $activityOutcome)) }} leads
+                {{ $activityScope === 'all' ? 'with this current status' : 'saved on '.\Illuminate\Support\Carbon::parse($activityDate)->format('d M Y') }}.
+            </p>
+        @endif
         <p>
-            <a class="button-link" href="{{ route('leads.index', ['scan_run' => $scanRunId, 'country' => $countryFilter ?: null, 'region' => $regionFilter ?: null, 'website_age' => $websiteAgeFilter ?: null]) }}">Back to Leads</a>
+            <a class="button-link" href="{{ route('leads.index', ['scan_run' => $scanRunId, 'country' => $countryFilter ?: null, 'region' => $regionFilter ?: null, 'website_age' => $websiteAgeFilter ?: null, 'activity_date' => $activityOutcome !== '' ? $activityDate : null, 'activity_outcome' => $activityOutcome ?: null, 'activity_scope' => $activityOutcome !== '' && $activityScope === 'all' ? 'all' : null, 'outcome_page' => $activityOutcome !== '' && $outcomePage > 1 ? $outcomePage : null]) }}{{ $activityOutcome !== '' ? '#outcome-leads' : '' }}">{{ $activityOutcome !== '' ? 'Back to '.ucwords(str_replace('_', ' ', $activityOutcome)).' leads' : 'Back to Leads' }}</a>
             <a class="button-link" href="{{ route('leads.discovery.index') }}">Lead Discovery</a>
             <a class="button-link" href="{{ route('zoom-phone.index') }}" style="background:#2563eb;">Zoom Phone</a>
         </p>
 
         <div class="lead-nav">
             @if ($previousLead)
-                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $previousLead, 'scan_run' => $scanRunId, 'country' => $countryFilter ?: null, 'region' => $regionFilter ?: null, 'website_age' => $websiteAgeFilter ?: null]) }}">← Previous lead</a>
+                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $previousLead, 'scan_run' => $scanRunId, 'country' => $countryFilter ?: null, 'region' => $regionFilter ?: null, 'website_age' => $websiteAgeFilter ?: null, 'activity_date' => $activityOutcome !== '' ? $activityDate : null, 'activity_outcome' => $activityOutcome ?: null, 'activity_scope' => $activityOutcome !== '' && $activityScope === 'all' ? 'all' : null, 'outcome_page' => $activityOutcome !== '' && $outcomePage > 1 ? $outcomePage : null]) }}">← Previous lead</a>
             @else
                 <span class="button-link disabled">← Previous lead</span>
             @endif
 
             @if ($nextLead)
-                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $nextLead, 'scan_run' => $scanRunId, 'country' => $countryFilter ?: null, 'region' => $regionFilter ?: null, 'website_age' => $websiteAgeFilter ?: null]) }}">Next lead →</a>
+                <a class="button-link" href="{{ route('leads.show', ['businessLead' => $nextLead, 'scan_run' => $scanRunId, 'country' => $countryFilter ?: null, 'region' => $regionFilter ?: null, 'website_age' => $websiteAgeFilter ?: null, 'activity_date' => $activityOutcome !== '' ? $activityDate : null, 'activity_outcome' => $activityOutcome ?: null, 'activity_scope' => $activityOutcome !== '' && $activityScope === 'all' ? 'all' : null, 'outcome_page' => $activityOutcome !== '' && $outcomePage > 1 ? $outcomePage : null]) }}">Next lead →</a>
             @else
                 <span class="button-link disabled">Next lead →</span>
             @endif
@@ -240,6 +246,16 @@
             @endif
             @if (filled($websiteAgeFilter ?? ''))
                 <input type="hidden" name="website_age" value="{{ $websiteAgeFilter }}">
+            @endif
+            @if ($activityOutcome !== '')
+                <input type="hidden" name="activity_outcome" value="{{ $activityOutcome }}">
+                <input type="hidden" name="activity_date" value="{{ $activityDate }}">
+                @if ($outcomePage > 1)
+                    <input type="hidden" name="outcome_page" value="{{ $outcomePage }}">
+                @endif
+                @if ($activityScope === 'all')
+                    <input type="hidden" name="activity_scope" value="all">
+                @endif
             @endif
             <div class="grid">
                 <div>

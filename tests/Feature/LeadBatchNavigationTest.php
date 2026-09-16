@@ -264,4 +264,69 @@ class LeadBatchNavigationTest extends TestCase
             ->assertSee('50.0%')
             ->assertSee('33.3%');
     }
+
+    public function test_saved_outcome_tiles_open_their_daily_leads_and_all_current_leads(): void
+    {
+        $user = User::factory()->create();
+        $currentFollowUp = BusinessLead::create(['name' => 'Current Follow Up', 'place_id' => 'current-follow-up']);
+        $laterChanged = BusinessLead::create(['name' => 'Later Changed', 'place_id' => 'later-changed']);
+        $otherOutcome = BusinessLead::create(['name' => 'Other Outcome', 'place_id' => 'other-outcome']);
+
+        foreach ([
+            [$currentFollowUp, 'new', '2026-08-18 09:00:00'],
+            [$currentFollowUp, 'follow_up', '2026-08-18 10:00:00'],
+            [$laterChanged, 'follow_up', '2026-08-18 11:00:00'],
+            [$otherOutcome, 'no_answer', '2026-08-18 12:00:00'],
+            [$laterChanged, 'keen', '2026-08-19 10:00:00'],
+        ] as [$lead, $outcome, $savedAt]) {
+            $note = LeadNote::create([
+                'business_lead_id' => $lead->id,
+                'outcome' => $outcome,
+                'body' => 'Saved '.$outcome,
+            ]);
+            $note->forceFill(['created_at' => $savedAt, 'updated_at' => $savedAt])->save();
+        }
+
+        $dailyUrl = route('leads.index', [
+            'activity_date' => '2026-08-18',
+            'activity_outcome' => 'follow_up',
+        ]);
+        $this->actingAs($user)
+            ->get($dailyUrl)
+            ->assertOk()
+            ->assertSee("View this day's leads", false)
+            ->assertSee('Current Follow Up')
+            ->assertSee('Later Changed')
+            ->assertSee('2 leads')
+            ->assertViewHas('outcomeLeads', fn ($notes): bool => $notes->total() === 2
+                && $notes->getCollection()->pluck('business_lead_id')->sort()->values()->all() === [$currentFollowUp->id, $laterChanged->id])
+            ->assertSee(route('leads.show', [
+                'businessLead' => $currentFollowUp,
+                'activity_date' => '2026-08-18',
+                'activity_outcome' => 'follow_up',
+            ]));
+
+        $this->actingAs($user)
+            ->get(route('leads.index', [
+                'activity_date' => '2026-08-18',
+                'activity_outcome' => 'follow_up',
+                'activity_scope' => 'all',
+            ]))
+            ->assertOk()
+            ->assertSee('Current latest outcome, across all dates')
+            ->assertSee('1 lead')
+            ->assertSee('Current Follow Up')
+            ->assertViewHas('outcomeLeads', fn ($notes): bool => $notes->total() === 1
+                && $notes->first()?->business_lead_id === $currentFollowUp->id);
+
+        $this->actingAs($user)
+            ->get(route('leads.show', [
+                'businessLead' => $currentFollowUp,
+                'activity_date' => '2026-08-18',
+                'activity_outcome' => 'follow_up',
+            ]))
+            ->assertOk()
+            ->assertSee($dailyUrl.'#outcome-leads')
+            ->assertViewHas('previousLead', fn ($lead): bool => $lead?->id === $laterChanged->id);
+    }
 }
