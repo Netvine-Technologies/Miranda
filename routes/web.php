@@ -8,6 +8,8 @@ use Illuminate\Validation\Rules\Password;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadDiscoveryController;
 use App\Http\Controllers\CoursePartnerProspectController;
+use App\Http\Controllers\CoursePartnerOpenController;
+use App\Http\Controllers\CoursePartnerEmailActivityController;
 use App\Http\Controllers\SearchDiscoveryController;
 use App\Http\Controllers\SeoProductController;
 use App\Http\Controllers\WebStoreController;
@@ -18,6 +20,10 @@ use App\Models\User;
 Route::get('/', function () {
     return redirect('/login');
 });
+
+Route::get('/course-partner-email/open/{token}.gif', CoursePartnerOpenController::class)
+    ->where('token', '[0-9a-f]{64}')
+    ->name('course-partners.email.open');
 
 Route::match(['get', 'post'], '/setup-owner', function (Request $request) {
     abort_if(User::query()->exists(), 404);
@@ -99,6 +105,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/leads/discovery/status', [LeadDiscoveryController::class, 'status'])->name('leads.discovery.status');
     Route::get('/leads/discovery/course-campaign/{leadScanRun}/export', [LeadDiscoveryController::class, 'exportCourseCampaign'])->name('leads.discovery.course-campaign.export');
     Route::get('/leads/course-partners', [CoursePartnerProspectController::class, 'index'])->name('leads.course-partners.index');
+    Route::get('/leads/course-partners/emails', CoursePartnerEmailActivityController::class)->name('leads.course-partners.emails');
     Route::get('/leads/course-partners/export', [CoursePartnerProspectController::class, 'export'])->name('leads.course-partners.export');
     Route::patch('/leads/course-partners/{coursePartnerProspect}', [CoursePartnerProspectController::class, 'update'])->name('leads.course-partners.update');
     Route::get('/leads', [LeadController::class, 'index'])->name('leads.index');

@@ -33,8 +33,9 @@
 <main class="wrap">
     <div class="card">
         <h1>Course Partner Prospects</h1>
-        <p class="muted">Nail and lash course providers discovered across the United Kingdom, United States, Canada, Australia and New Zealand. Course evidence and public contacts require human review. This page does not send email.</p>
+        <p class="muted">Nail and lash course providers discovered across the United Kingdom, United States, Canada, Australia and New Zealand. Course evidence and public contacts require human review. Email sending is manual; an observed open means the email image loaded and does not prove a person read it.</p>
         <a href="{{ route('leads.discovery.index') }}">Back to Lead Discovery</a>
+        <span class="muted"> · </span><a href="{{ route('leads.course-partners.emails') }}">Email activity</a>
         @if (session('status')) <p class="status">{{ session('status') }}</p> @endif
         @if ($errors->any()) <p class="status">{{ $errors->first() }}</p> @endif
     </div>
@@ -72,7 +73,7 @@
         <div class="card">
             <h2>{{ $prospects->total() }} prospects</h2>
             <div class="table-wrap"><table>
-                <thead><tr><th>Provider</th><th>Market</th><th>Course evidence</th><th>Public contact</th><th>Review</th></tr></thead>
+                <thead><tr><th>Provider</th><th>Market</th><th>Course evidence</th><th>Public contact</th><th>Email activity</th><th>Review</th></tr></thead>
                 <tbody>
                     @forelse ($prospects as $prospect)
                         @php $firstEvidence = collect((array) $prospect->course_evidence)->first(); @endphp
@@ -90,6 +91,22 @@
                                 @if ($prospect->phone)<br><span class="muted">{{ $prospect->phone }}</span>@endif
                             </td>
                             <td>
+                                @if (! $outreachReady)
+                                    <span class="muted">Tracking not installed</span>
+                                @elseif (! $prospect->latestOutreachEmail)
+                                    <span class="muted">Not sent</span>
+                                @else
+                                    {{ ucfirst($prospect->latestOutreachEmail->status) }}
+                                    @if ($prospect->latestOutreachEmail->sent_at)<br><span class="muted">Sent {{ $prospect->latestOutreachEmail->sent_at->format('Y-m-d H:i') }} UTC</span>@endif
+                                    @if ($prospect->latestOutreachEmail->first_opened_at)
+                                        <br><strong>Opened {{ $prospect->latestOutreachEmail->first_opened_at->format('Y-m-d H:i') }} UTC</strong>
+                                        <br><span class="muted">{{ $prospect->latestOutreachEmail->open_count }} image load(s)</span>
+                                    @elseif ($prospect->latestOutreachEmail->status === 'sent')
+                                        <br><span class="muted">No open observed</span>
+                                    @endif
+                                @endif
+                            </td>
+                            <td>
                                 <form method="POST" action="{{ route('leads.course-partners.update', $prospect) }}" class="review-form">
                                     @csrf @method('PATCH')
                                     <select name="review_status" aria-label="Review status for {{ $prospect->name }}">
@@ -101,7 +118,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="muted">No prospects match these filters. Run a course scan, then review the evidence here.</td></tr>
+                        <tr><td colspan="6" class="muted">No prospects match these filters. Run a course scan, then review the evidence here.</td></tr>
                     @endforelse
                 </tbody>
             </table></div>

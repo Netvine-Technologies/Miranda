@@ -16,12 +16,16 @@ class CoursePartnerProspectController extends Controller
     public function index(Request $request): View
     {
         $ready = Schema::hasTable('course_partner_prospects');
+        $outreachReady = Schema::hasTable('course_partner_outreach_emails');
         $filters = $this->filters($request);
 
         return view('leads.course-partners', [
             'ready' => $ready,
-            'prospects' => $ready ? $this->filteredQuery($filters)->orderByDesc('last_discovered_at')->paginate(30)->withQueryString() : null,
+            'prospects' => $ready ? $this->filteredQuery($filters)
+                ->when($outreachReady, fn (Builder $query) => $query->with('latestOutreachEmail'))
+                ->orderByDesc('last_discovered_at')->paginate(30)->withQueryString() : null,
             'filters' => $filters,
+            'outreachReady' => $outreachReady,
             'countries' => (array) config('leads.course_partner_countries', []),
             'statuses' => $this->statuses(),
         ]);
