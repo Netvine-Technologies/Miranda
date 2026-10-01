@@ -11,4 +11,5 @@ return [
     'commission_months' => (int) env('COURSE_PARTNER_COMMISSION_MONTHS', 12),
     'campaign_key' => 'educator-partnership-v1',
     'logo_url' => 'https://bookingtree.io/booking-tree-logo-white.png',
+    'partner_enquiry_url' => 'https://bookingtree.io/partners/educators#partner-enquiry',
 ];

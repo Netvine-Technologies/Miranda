@@ -28,6 +28,9 @@ class CoursePartnerProposal extends Mailable
             ->subject("Partnership idea for {$provider} graduates")
             ->view('emails.course-partner-proposal')
             ->text('emails.course-partner-proposal-text')
-            ->with(['logoUrl' => (string) config('course_partner_outreach.logo_url')]);
+            ->with([
+                'logoUrl' => (string) config('course_partner_outreach.logo_url'),
+                'partnerEnquiryUrl' => (string) config('course_partner_outreach.partner_enquiry_url'),
+            ]);
     }
 }

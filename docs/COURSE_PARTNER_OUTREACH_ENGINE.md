@@ -1,6 +1,6 @@
 # Course Partner Programme email engine
 
-The command `php artisan course-partners:email` renders the Booking Tree educator partnership template in HTML and plain text, sends it through Miranda's Mailgun transport, and records the recipient, send status and observed image loads in `course_partner_outreach_emails`. The HTML uses the existing Booking Tree logo and the 20% for 12 months offer. Programme terms come from `config/course_partner_outreach.php` and are saved with each email record.
+The command `php artisan course-partners:email` renders the Booking Tree educator partnership template in HTML and plain text, sends it through Miranda's Mailgun transport, and records the recipient, send status and observed image loads in `course_partner_outreach_emails`. The HTML uses the existing Booking Tree logo, the 20% for 12 months offer, and one link to the [educator partner enquiry](https://bookingtree.io/partners/educators#partner-enquiry). Programme terms come from `config/course_partner_outreach.php` and are saved with each email record.
 
 ## Setup before a review send
 

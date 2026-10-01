@@ -22,7 +22,8 @@
       <p style="margin:0 0 15px;">As your graduates start taking on clients, Booking Tree can help them accept online bookings, collect payments and send appointment reminders.</p>
       <p style="margin:0 0 15px;">The idea is simple: recommend Booking Tree to your students when they finish their course, and <strong>earn {{ $commissionPercent }}% of each referred student’s subscription for their first {{ $commissionMonths }} months</strong>, while they remain a paying customer.</p>
       <p style="margin:0 0 15px;">There’s no cost to take part, and we would provide a dedicated referral link so you receive credit for the students you introduce.</p>
-      <p style="margin:0 0 18px;">Would you be interested in seeing how this could work for {{ $providerName }}?</p>
+      <p style="margin:0 0 10px;">Would you be interested in seeing how this could work for {{ $providerName }}?</p>
+      <p style="margin:0 0 18px;"><a href="{{ $partnerEnquiryUrl }}" style="color:#0b7a50;font-weight:700;text-decoration:underline;">View the programme and enquire</a></p>
       <p style="margin:0 0 18px;">Thanks,<br><strong>Shane</strong><br>Booking Tree</p>
       <p style="margin:0;color:#64748b;font-size:12px;line-height:1.5;">If this isn’t relevant, just let me know and I won’t follow up.</p>
     </td></tr>

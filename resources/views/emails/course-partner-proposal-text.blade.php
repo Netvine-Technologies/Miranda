@@ -12,6 +12,8 @@ There’s no cost to take part, and we would provide a dedicated referral link s
 
 Would you be interested in seeing how this could work for {{ $providerName }}?
 
+View the programme and enquire: {{ $partnerEnquiryUrl }}
+
 Thanks,
 Shane
 Booking Tree
