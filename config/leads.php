@@ -12,6 +12,17 @@ return [
         'max' => ['max_pages' => 10, 'max_results' => 200],
     ],
     'web_search_provider' => env('LEAD_WEB_SEARCH_PROVIDER', 'brave'),
+    'course_campaigns' => [
+        'nail' => ['label' => 'Nail technician courses', 'query' => 'nail technician training courses academy'],
+        'lash' => ['label' => 'Lash technician courses', 'query' => 'eyelash extension training courses academy'],
+    ],
+    'course_partner_countries' => [
+        'GB' => ['label' => 'United Kingdom', 'starter_markets' => ['London', 'Manchester', 'Birmingham', 'Leeds']],
+        'US' => ['label' => 'United States', 'starter_markets' => ['New York, NY', 'Los Angeles, CA', 'Chicago, IL', 'Houston, TX']],
+        'CA' => ['label' => 'Canada', 'starter_markets' => ['Toronto, ON', 'Vancouver, BC', 'Montreal, QC', 'Calgary, AB']],
+        'AU' => ['label' => 'Australia', 'starter_markets' => ['Sydney, NSW', 'Melbourne, VIC', 'Brisbane, QLD', 'Perth, WA']],
+        'NZ' => ['label' => 'New Zealand', 'starter_markets' => ['Auckland', 'Wellington', 'Christchurch', 'Hamilton']],
+    ],
     'intent_tags' => [
         'booking_system' => 'Booking System',
         'ai_receptionist' => 'AI Receptionist',

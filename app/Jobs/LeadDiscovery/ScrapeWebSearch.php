@@ -49,9 +49,11 @@ class ScrapeWebSearch implements ShouldQueue
             $host = strtolower((string) parse_url($business['website'], PHP_URL_HOST));
             $host = str_starts_with($host, 'www.') ? substr($host, 4) : $host;
             $placeId = 'web:'.hash('sha256', $host);
-            $lead = BusinessLead::query()->where('place_id', $placeId)->first()
-                ?? BusinessLead::query()->where('website', 'like', '%'.$host.'%')->first()
-                ?? new BusinessLead(['place_id' => $placeId]);
+            $lead = BusinessLead::query()->where('place_id', $placeId)->first();
+            if (! $lead && ! $scanRun?->course_focus) {
+                $lead = BusinessLead::query()->where('website', 'like', '%'.$host.'%')->first();
+            }
+            $lead ??= new BusinessLead(['place_id' => $placeId]);
             $lead->fill([
                 'name' => $lead->exists ? $lead->name : $business['name'],
                 'city' => $lead->city ?: $this->location,
@@ -66,7 +68,11 @@ class ScrapeWebSearch implements ShouldQueue
                 $scanRun->businessLeads()->syncWithoutDetaching([$lead->id]);
             }
 
-            CrawlBusinessWebsite::dispatch($lead->id, $scanRun?->id);
+            CrawlBusinessWebsite::dispatch(
+                $lead->id,
+                $scanRun?->id,
+                $scanRun?->course_focus ? (string) $business['source_url'] : null,
+            );
             $queued++;
         }
 

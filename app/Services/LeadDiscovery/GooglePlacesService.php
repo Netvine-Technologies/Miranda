@@ -14,7 +14,7 @@ class GooglePlacesService
      *     error_message: string|null
      * }
      */
-    public function textSearch(string $query, string $location, string $depthMode = 'standard'): array
+    public function textSearch(string $query, string $location, string $depthMode = 'standard', ?string $countryCode = null): array
     {
         $apiKey = (string) config('leads.google_places_api_key');
 
@@ -29,7 +29,7 @@ class GooglePlacesService
         }
 
         $endpoint = rtrim((string) config('leads.google_places_endpoint'), '/');
-        $regionCode = (string) config('leads.google_places_region_code', 'GB');
+        $regionCode = $countryCode ?: (string) config('leads.google_places_region_code', 'GB');
         $depthSettings = $this->resolveDepthMode($depthMode);
         $basePayload = [
             'textQuery' => trim($query.' in '.$location),

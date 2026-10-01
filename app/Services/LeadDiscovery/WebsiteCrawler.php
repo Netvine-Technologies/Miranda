@@ -11,10 +11,11 @@ class WebsiteCrawler
      * @return array{
      *     emails: array<int, array{email: string, source_page: string}>,
      *     phone_numbers: array<int, array{phone_number: string, source_page: string}>,
-     *     booking_url: string|null
+     *     booking_url: string|null,
+     *     course_evidence: array<int, array{focus: string, source_page: string}>
      * }
      */
-    public function crawl(string $website, ?string $location = null): array
+    public function crawl(string $website, ?string $location = null, ?string $courseFocus = null): array
     {
         $base = $this->normalizeWebsite($website);
 
@@ -23,6 +24,7 @@ class WebsiteCrawler
                 'emails' => [],
                 'phone_numbers' => [],
                 'booking_url' => null,
+                'course_evidence' => [],
             ];
         }
 
@@ -35,6 +37,7 @@ class WebsiteCrawler
         $emails = [];
         $phoneNumbers = [];
         $bookingLinks = [];
+        $courseEvidence = [];
 
         foreach ($paths as $path) {
             $path = is_string($path) && $path !== '' ? $path : '/';
@@ -55,6 +58,10 @@ class WebsiteCrawler
 
             if ($html === null) {
                 continue;
+            }
+
+            if ($courseFocus !== null && app(CourseEvidenceDetector::class)->matches($html, $courseFocus)) {
+                $courseEvidence[$url] = ['focus' => $courseFocus, 'source_page' => $url];
             }
 
             foreach ($this->extractEmails($html) as $email) {
@@ -90,7 +97,7 @@ class WebsiteCrawler
                 );
             }
 
-            $discoveredUrls = $this->extractContactPageLinks($html, $url, $websiteHost);
+            $discoveredUrls = $this->extractContactPageLinks($html, $url, $websiteHost, $courseFocus);
 
             foreach (array_reverse($discoveredUrls) as $discoveredUrl) {
                 if (! isset($pages[$discoveredUrl]) && ! in_array($discoveredUrl, $pendingUrls, true)) {
@@ -105,6 +112,7 @@ class WebsiteCrawler
             'emails' => array_values($emails),
             'phone_numbers' => array_values($phoneNumbers),
             'booking_url' => array_key_first($bookingLinks),
+            'course_evidence' => array_values($courseEvidence),
         ];
     }
 
@@ -114,13 +122,15 @@ class WebsiteCrawler
      *
      * @return array<int, string>
      */
-    protected function extractContactPageLinks(string $html, string $pageUrl, ?string $websiteHost): array
+    protected function extractContactPageLinks(string $html, string $pageUrl, ?string $websiteHost, ?string $courseFocus = null): array
     {
         if (! $websiteHost) {
             return [];
         }
 
-        $signals = '/\b(?:contact|contact-us|reach-us|get-in-touch|about|about-us|team|staff|locations?|visit|support|help|book|booking|schedule|appointment|reserve|reservation)\b/i';
+        $signals = $courseFocus === null
+            ? '/\b(?:contact|contact-us|reach-us|get-in-touch|about|about-us|team|staff|locations?|visit|support|help|book|booking|schedule|appointment|reserve|reservation)\b/i'
+            : '/\b(?:contact|contact-us|reach-us|get-in-touch|about|about-us|team|staff|locations?|visit|support|help|book|booking|schedule|appointment|reserve|reservation|course|training|academy|workshop|education|nail|lash)\b/i';
         $links = [];
 
         preg_match_all(

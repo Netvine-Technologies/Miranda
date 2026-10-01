@@ -8,6 +8,20 @@ use Tests\TestCase;
 
 class WebsiteCrawlerTest extends TestCase
 {
+    public function test_course_campaign_follows_training_page_and_keeps_evidence_and_contact_sources(): void
+    {
+        config()->set('leads.crawl_paths', ['/']);
+        Http::fake([
+            'https://example.com/' => Http::response('<a href="/courses/nail-technician">Nail technician course</a>'),
+            'https://example.com/courses/nail-technician' => Http::response('<h1>Accredited nail technician training course</h1><a href="mailto:training@example.com">Email</a>'),
+        ]);
+
+        $result = app(WebsiteCrawler::class)->crawl('https://example.com', 'United Kingdom', 'nail');
+
+        $this->assertContains(['focus' => 'nail', 'source_page' => 'https://example.com/courses/nail-technician'], $result['course_evidence']);
+        $this->assertContains(['email' => 'training@example.com', 'source_page' => 'https://example.com/courses/nail-technician'], $result['emails']);
+    }
+
     public function test_it_detects_an_external_booking_provider_link(): void
     {
         config()->set('leads.crawl_paths', ['/']);

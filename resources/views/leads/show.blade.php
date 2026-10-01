@@ -135,6 +135,18 @@
             <p class="muted">Updated {{ optional($lead->updated_at)->toDateTimeString() }}</p>
         </div>
 
+        @if (!empty($lead->course_evidence))
+            <div class="card">
+                <h2>Course evidence</h2>
+                <p class="muted">Miranda found course language on these pages. Check the pages before using this contact in a campaign.</p>
+                <ul>
+                    @foreach ($lead->course_evidence as $evidence)
+                        <li>{{ ucfirst($evidence['focus'] ?? 'Course') }}: <a href="{{ $evidence['source_page'] ?? '#' }}" target="_blank" rel="noopener">{{ $evidence['source_page'] ?? 'Source unavailable' }}</a></li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <div class="card">
             <h2>Emails</h2>
             @if ($lead->emails->isEmpty())

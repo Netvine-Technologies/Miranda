@@ -10,6 +10,7 @@
 ## Project Guide
 
 - Mandatory production safeguards: [`AGENTS.md`](AGENTS.md)
+- UK nail and lash course research: [`docs/COURSE_CAMPAIGNS.md`](docs/COURSE_CAMPAIGNS.md)
 - Shopify scraper roadmap: `docs/SHOPIFY_SCRAPER_GUIDE.md`
 
 ## About Laravel

@@ -7,6 +7,7 @@ use App\Models\LeadScanRun;
 use App\Models\LeadEmail;
 use App\Models\LeadPhoneNumber;
 use App\Services\LeadDiscovery\WebsiteCrawler;
+use App\Services\LeadDiscovery\CoursePartnerProspectRecorder;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
@@ -17,7 +18,8 @@ class CrawlBusinessWebsite implements ShouldQueue
 
     public function __construct(
         public int $businessLeadId,
-        public ?int $scanRunId = null
+        public ?int $scanRunId = null,
+        public ?string $seedUrl = null,
     ) {
         $this->onQueue('lead-discovery');
     }
@@ -40,8 +42,9 @@ class CrawlBusinessWebsite implements ShouldQueue
         }
 
         $result = $websiteCrawler->crawl(
-            (string) $lead->website,
+            $this->seedUrl ?: (string) $lead->website,
             $scanRun?->location ?: $lead->city,
+            $scanRun?->course_focus,
         );
         $emailsAdded = 0;
         $phonesAdded = 0;
@@ -99,8 +102,21 @@ class CrawlBusinessWebsite implements ShouldQueue
             $lead->booking_url = (string) $result['booking_url'];
         }
 
+        if ($scanRun?->course_focus) {
+            $existing = (array) $lead->course_evidence;
+            $new = (array) ($result['course_evidence'] ?? []);
+            $lead->course_evidence = collect([...$existing, ...$new])
+                ->filter(fn ($row): bool => is_array($row) && isset($row['focus'], $row['source_page']))
+                ->unique(fn (array $row): string => $row['focus'].'|'.$row['source_page'])
+                ->values()->all();
+        }
+
         $lead->scraped = true;
         $lead->save();
+
+        if ($scanRun?->course_focus && $scanRun->course_country) {
+            app(CoursePartnerProspectRecorder::class)->record($lead, $scanRun, $result);
+        }
 
         if (config('leads.website_freshness.enabled', true)) {
             AssessWebsiteFreshness::dispatch($lead->id);

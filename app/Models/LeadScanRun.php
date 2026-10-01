@@ -24,6 +24,8 @@ class LeadScanRun extends Model
         'location',
         'discovery_source',
         'intent_tags',
+        'course_focus',
+        'course_country',
         'status',
         'total_places_found',
         'details_processed',
@@ -77,5 +79,10 @@ class LeadScanRun extends Model
     public function businessLeads(): BelongsToMany
     {
         return $this->belongsToMany(BusinessLead::class, 'lead_scan_run_business_lead')->withTimestamps();
+    }
+
+    public function coursePartnerProspects(): BelongsToMany
+    {
+        return $this->belongsToMany(CoursePartnerProspect::class, 'course_partner_prospect_scan_run')->withTimestamps();
     }
 }

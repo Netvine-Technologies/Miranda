@@ -186,6 +186,7 @@
             <p>
                 <a class="button-link" href="{{ route('dashboard') }}">Back to Dashboard</a>
                 <a class="button-link" href="{{ route('leads.index') }}" style="background:#334155;">View Leads</a>
+                <a class="button-link" href="{{ route('leads.course-partners.index') }}" style="background:#0b7a50;">Course Partner Prospects</a>
             </p>
 
             @if (session('status'))
@@ -204,6 +205,12 @@
                 </div>
             @endif
 
+            @if (($migrationReady ?? false) && !($courseCampaignReady ?? false))
+                <div class="status" style="background:#fff7ed;border-color:#fed7aa;color:#9a3412;">
+                    Course Partner Programme scans need the latest additive migration before they can be selected.
+                </div>
+            @endif
+
             @if (!($webSearchStatus['configured'] ?? false))
                 <div class="status" style="background:#fff7ed;border-color:#fed7aa;color:#9a3412;">
                     Fast Web Search needs a {{ ucfirst((string) ($webSearchStatus['provider'] ?? 'search')) }} API key. Google Maps remains available until it is configured.
@@ -212,14 +219,39 @@
 
             <form method="POST" action="{{ route('leads.discovery.start') }}">
                 @csrf
+                <p class="muted">For nail or lash course providers, choose a country and either one location or four starter markets. Miranda checks course pages and saves matching providers in the separate Course Partner Prospects table. Four-market batches use Web Search and may consume API quota.</p>
                 <div class="row">
                     <div class="field">
-                        <label for="query">Query</label>
-                        <input id="query" name="query" value="{{ old('query', 'dog trainer') }}" required {{ !($migrationReady ?? false) ? 'disabled' : '' }}>
+                        <label for="course_focus">Course campaign</label>
+                        <select id="course_focus" name="course_focus" {{ !($courseCampaignReady ?? false) ? 'disabled' : '' }}>
+                            <option value="">General lead scan</option>
+                            @foreach (($courseCampaigns ?? []) as $focus => $campaign)
+                                <option value="{{ $focus }}" data-query="{{ $campaign['query'] }}" {{ old('course_focus') === $focus ? 'selected' : '' }}>{{ $campaign['label'] }}</option>
+                            @endforeach
+                        </select>
                     </div>
                     <div class="field">
-                        <label for="location">Location</label>
-                        <input id="location" name="location" value="{{ old('location', 'London') }}" required {{ !($migrationReady ?? false) ? 'disabled' : '' }}>
+                        <label for="query">Query</label>
+                        <input id="query" name="query" value="{{ old('query', 'dog trainer') }}" {{ !($migrationReady ?? false) ? 'disabled' : '' }}>
+                    </div>
+                    <div>
+                        <label for="course_country">Course partner country</label>
+                        <select id="course_country" name="course_country" {{ !($courseCampaignReady ?? false) ? 'disabled' : '' }}>
+                            @foreach (($coursePartnerCountries ?? []) as $code => $country)
+                                <option value="{{ $code }}" data-country-label="{{ $country['label'] }}" {{ old('course_country', 'GB') === $code ? 'selected' : '' }}>{{ $country['label'] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label for="course_scope">Course scan scope</label>
+                        <select id="course_scope" name="course_scope" {{ !($courseCampaignReady ?? false) ? 'disabled' : '' }}>
+                            <option value="single" {{ old('course_scope', 'single') === 'single' ? 'selected' : '' }}>One location</option>
+                            <option value="starter_markets" {{ old('course_scope') === 'starter_markets' ? 'selected' : '' }}>Four starter markets</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="location">Location (optional for course scans)</label>
+                        <input id="location" name="location" value="{{ old('location', 'United Kingdom') }}" placeholder="City or region; country is added automatically" {{ !($migrationReady ?? false) ? 'disabled' : '' }}>
                     </div>
                     <div>
                         <label for="discovery_source">Source</label>
@@ -276,7 +308,7 @@
                 <tbody id="runs-body">
                     @foreach ($recentRuns as $run)
                         <tr>
-                            <td>#{{ $run->id }}<br><span class="muted">{{ $run->query }} | {{ $run->location }}</span><br><span class="chip">{{ ($run->discovery_source ?? 'google_places') === 'web_search' ? 'Web Search' : 'Google Maps' }}</span>@foreach ((array) $run->intent_tags as $intent)<span class="chip intent-chip">{{ $intentTagOptions[$intent] ?? ucwords(str_replace('_', ' ', $intent)) }}</span>@endforeach</td>
+                            <td>#{{ $run->id }}<br><span class="muted">{{ $run->query }} | {{ $run->location }}</span><br><span class="chip">{{ ($run->discovery_source ?? 'google_places') === 'web_search' ? 'Web Search' : 'Google Maps' }}</span>@if ($run->course_country)<span class="chip">{{ $run->course_country }}</span>@endif @foreach ((array) $run->intent_tags as $intent)<span class="chip intent-chip">{{ $intentTagOptions[$intent] ?? ucwords(str_replace('_', ' ', $intent)) }}</span>@endforeach @if ($run->course_focus && $run->status === 'completed')<br><a href="{{ route('leads.discovery.course-campaign.export', $run) }}">Download {{ ucfirst($run->course_focus) }} course prospects CSV</a>@endif</td>
                             <td><span class="badge {{ $run->status }}">{{ $run->status }}</span></td>
                             <td>
                                 @php
@@ -306,6 +338,7 @@
 
     <script>
         const statusUrl = @json(route('leads.discovery.status'));
+        const courseExportUrl = @json(route('leads.discovery.course-campaign.export', ['leadScanRun' => '__RUN_ID__']));
         const runsBody = document.getElementById('runs-body');
         const migrationReady = @json((bool) ($migrationReady ?? false));
         const englishSpeakingMarkets = @json($englishSpeakingMarkets ?? []);
@@ -313,6 +346,26 @@
         const marketGrid = document.getElementById('market-grid');
         const marketCount = document.getElementById('market-count');
         const marketEmpty = document.getElementById('market-empty');
+        const courseFocus = document.getElementById('course_focus');
+        const courseCountry = document.getElementById('course_country');
+        const courseScope = document.getElementById('course_scope');
+        const queryInput = document.getElementById('query');
+        const locationInput = document.getElementById('location');
+        courseFocus?.addEventListener('change', () => {
+            const selected = courseFocus.selectedOptions[0];
+            if (selected?.dataset.query) queryInput.value = selected.dataset.query;
+        });
+        courseCountry?.addEventListener('change', () => {
+            const labels = Array.from(courseCountry.options).map((option) => option.dataset.countryLabel);
+            if (!locationInput.value.trim() || labels.includes(locationInput.value.trim())) {
+                locationInput.value = courseCountry.selectedOptions[0]?.dataset.countryLabel || '';
+            }
+        });
+        courseScope?.addEventListener('change', () => {
+            locationInput.disabled = courseFocus?.value && courseScope.value === 'starter_markets';
+        });
+        courseFocus?.addEventListener('change', () => courseScope?.dispatchEvent(new Event('change')));
+        courseScope?.dispatchEvent(new Event('change'));
 
         function localMarketTime(timezone) {
             const parts = new Intl.DateTimeFormat('en-GB', {
@@ -413,7 +466,7 @@
 
                 return `
                     <tr>
-                        <td>#${run.id}<br><span class="muted">${query} | ${location}</span><br><span class="chip">${run.discovery_source === 'web_search' ? 'Web Search' : 'Google Maps'}</span>${renderIntentTags(run.intent_tags)}</td>
+                        <td>#${run.id}<br><span class="muted">${query} | ${location}</span><br><span class="chip">${run.discovery_source === 'web_search' ? 'Web Search' : 'Google Maps'}</span>${run.course_country ? `<span class="chip">${escapeHtml(run.course_country)}</span>` : ''}${renderIntentTags(run.intent_tags)}${run.course_focus && run.status === 'completed' ? `<br><a href="${courseExportUrl.replace('__RUN_ID__', encodeURIComponent(run.id))}">Download ${escapeHtml(run.course_focus)} course prospects CSV</a>` : ''}</td>
                         <td>${renderBadge(run.status)}</td>
                         <td>
                             ${progress}%

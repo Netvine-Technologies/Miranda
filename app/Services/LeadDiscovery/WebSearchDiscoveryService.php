@@ -53,6 +53,10 @@ class WebSearchDiscoveryService
 
     public function buildQuery(string $query, string $location): string
     {
+        if (str_contains(strtolower($query), 'courses') && str_contains(strtolower($query), 'training')) {
+            return trim(sprintf('%s %s official website', trim($query), trim($location)));
+        }
+
         return trim(sprintf('%s %s official website contact', trim($query), trim($location)));
     }
 

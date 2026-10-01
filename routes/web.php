@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\Rules\Password;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadDiscoveryController;
+use App\Http\Controllers\CoursePartnerProspectController;
 use App\Http\Controllers\SearchDiscoveryController;
 use App\Http\Controllers\SeoProductController;
 use App\Http\Controllers\WebStoreController;
@@ -96,6 +97,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/leads/discovery', [LeadDiscoveryController::class, 'index'])->name('leads.discovery.index');
     Route::post('/leads/discovery', [LeadDiscoveryController::class, 'start'])->name('leads.discovery.start');
     Route::get('/leads/discovery/status', [LeadDiscoveryController::class, 'status'])->name('leads.discovery.status');
+    Route::get('/leads/discovery/course-campaign/{leadScanRun}/export', [LeadDiscoveryController::class, 'exportCourseCampaign'])->name('leads.discovery.course-campaign.export');
+    Route::get('/leads/course-partners', [CoursePartnerProspectController::class, 'index'])->name('leads.course-partners.index');
+    Route::get('/leads/course-partners/export', [CoursePartnerProspectController::class, 'export'])->name('leads.course-partners.export');
+    Route::patch('/leads/course-partners/{coursePartnerProspect}', [CoursePartnerProspectController::class, 'update'])->name('leads.course-partners.update');
     Route::get('/leads', [LeadController::class, 'index'])->name('leads.index');
     Route::get('/leads/{businessLead}', [LeadController::class, 'show'])->name('leads.show');
     Route::post('/leads/{businessLead}/notes', [LeadController::class, 'storeNote'])->name('leads.notes.store');

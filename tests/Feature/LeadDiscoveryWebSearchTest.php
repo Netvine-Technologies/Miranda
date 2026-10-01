@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Jobs\LeadDiscovery\ScrapeWebSearch;
 use App\Models\BusinessLead;
 use App\Models\LeadScanRun;
+use App\Models\CoursePartnerProspect;
 use App\Models\User;
+use App\Services\LeadDiscovery\CoursePartnerProspectRecorder;
 use App\Services\LeadDiscovery\WebSearchDiscoveryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -14,6 +16,106 @@ use Tests\TestCase;
 class LeadDiscoveryWebSearchTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_course_scan_records_country_and_exports_only_evidenced_prospects(): void
+    {
+        config([
+            'leads.web_search_provider' => 'brave',
+            'search_discovery.providers.brave.api_key' => 'test-key',
+        ]);
+        Queue::fake();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post(route('leads.discovery.start'), [
+            'course_focus' => 'nail',
+            'course_country' => 'GB',
+            'location' => 'United Kingdom',
+            'discovery_source' => 'web_search',
+            'depth_mode' => 'quick',
+        ])->assertRedirect(route('leads.discovery.index'));
+
+        $run = LeadScanRun::query()->sole();
+        $this->assertSame('nail', $run->course_focus);
+        $this->assertSame('GB', $run->course_country);
+        $this->assertSame(config('leads.course_campaigns.nail.query'), $run->query);
+        Queue::assertPushed(ScrapeWebSearch::class);
+
+        $qualified = BusinessLead::create([
+            'name' => 'Nail Academy',
+            'place_id' => 'nail-academy',
+            'website' => 'https://academy.example',
+        ]);
+        $unqualified = BusinessLead::create([
+            'name' => 'Nail Salon',
+            'place_id' => 'nail-salon',
+            'website' => 'https://salon.example',
+        ]);
+        $recorder = app(CoursePartnerProspectRecorder::class);
+        $recorder->record($qualified, $run, [
+            'course_evidence' => [['focus' => 'nail', 'source_page' => 'https://academy.example/nail-course']],
+            'emails' => [['email' => 'hello@academy.example', 'source_page' => 'https://academy.example/contact']],
+        ]);
+        $recorder->record($unqualified, $run, [
+            'course_evidence' => [],
+            'emails' => [['email' => 'hello@salon.example', 'source_page' => 'https://salon.example/contact']],
+        ]);
+
+        $csv = $this->actingAs($user)->get(route('leads.discovery.course-campaign.export', $run))
+            ->assertOk()->streamedContent();
+        $this->assertStringContainsString('hello@academy.example', $csv);
+        $this->assertStringContainsString('https://academy.example/nail-course', $csv);
+        $this->assertStringNotContainsString('hello@salon.example', $csv);
+        $this->assertDatabaseCount('course_partner_prospects', 1);
+    }
+
+    public function test_starter_market_scan_queues_four_country_specific_runs(): void
+    {
+        config([
+            'leads.web_search_provider' => 'brave',
+            'search_discovery.providers.brave.api_key' => 'test-key',
+        ]);
+        Queue::fake();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post(route('leads.discovery.start'), [
+            'course_focus' => 'lash',
+            'course_country' => 'US',
+            'course_scope' => 'starter_markets',
+            'discovery_source' => 'web_search',
+            'depth_mode' => 'quick',
+        ])->assertRedirect(route('leads.discovery.index'));
+
+        $this->assertDatabaseCount('lead_scan_runs', 4);
+        $this->assertSame(4, LeadScanRun::query()->where('course_country', 'US')->count());
+        $this->assertTrue(LeadScanRun::query()->where('location', 'New York, NY, United States')->exists());
+        Queue::assertPushed(ScrapeWebSearch::class, 4);
+    }
+
+    public function test_course_partner_rescan_merges_evidence_without_resetting_review(): void
+    {
+        $lead = BusinessLead::create(['name' => 'Lash Academy', 'place_id' => 'lash-academy', 'website' => 'https://lash.example']);
+        $first = LeadScanRun::create(['query' => 'lash courses', 'location' => 'Toronto, ON, Canada', 'course_focus' => 'lash', 'course_country' => 'CA', 'status' => LeadScanRun::STATUS_COMPLETED]);
+        $second = LeadScanRun::create(['query' => 'lash courses', 'location' => 'Vancouver, BC, Canada', 'course_focus' => 'lash', 'course_country' => 'CA', 'status' => LeadScanRun::STATUS_COMPLETED]);
+        $recorder = app(CoursePartnerProspectRecorder::class);
+
+        $prospect = $recorder->record($lead, $first, [
+            'course_evidence' => [['focus' => 'lash', 'source_page' => 'https://lash.example/courses']],
+            'emails' => [['email' => 'info@lash.example', 'source_page' => 'https://lash.example/contact']],
+        ]);
+        $prospect->update(['review_status' => CoursePartnerProspect::STATUS_REVIEWED, 'review_notes' => 'Good fit']);
+        $recorder->record($lead, $second, [
+            'course_evidence' => [['focus' => 'lash', 'source_page' => 'https://lash.example/lash-training']],
+            'emails' => [['email' => 'training@lash.example', 'source_page' => 'https://lash.example/contact']],
+        ]);
+
+        $saved = CoursePartnerProspect::query()->sole();
+        $this->assertSame(CoursePartnerProspect::STATUS_REVIEWED, $saved->review_status);
+        $this->assertSame('Good fit', $saved->review_notes);
+        $this->assertCount(2, $saved->course_evidence);
+        $this->assertCount(2, $saved->contact_emails);
+        $this->assertCount(2, $saved->scanRuns);
+    }
+
 
     public function test_web_search_can_be_queued_as_a_normal_discovery_batch(): void
     {

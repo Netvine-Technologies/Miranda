@@ -35,7 +35,7 @@ class ScrapeGooglePlaces implements ShouldQueue
             ]);
         }
 
-        $searchResponse = $googlePlacesService->textSearch($this->query, $this->location, $this->depthMode);
+        $searchResponse = $googlePlacesService->textSearch($this->query, $this->location, $this->depthMode, $scanRun?->course_country);
         $results = $searchResponse['results'];
 
         if ($scanRun) {
