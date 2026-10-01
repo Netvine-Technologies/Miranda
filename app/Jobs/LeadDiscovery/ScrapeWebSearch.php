@@ -3,6 +3,7 @@
 namespace App\Jobs\LeadDiscovery;
 
 use App\Models\BusinessLead;
+use App\Models\CoursePartnerProspect;
 use App\Models\LeadScanRun;
 use App\Services\LeadDiscovery\WebSearchDiscoveryService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -44,10 +45,30 @@ class ScrapeWebSearch implements ShouldQueue
             $this->provider,
         );
         $queued = 0;
+        $found = 0;
 
         foreach ($businesses as $business) {
+            $found++;
             $host = strtolower((string) parse_url($business['website'], PHP_URL_HOST));
             $host = str_starts_with($host, 'www.') ? substr($host, 4) : $host;
+            if ($scanRun?->course_focus && $scanRun->course_country) {
+                $prospect = CoursePartnerProspect::query()
+                    ->where('country_code', $scanRun->course_country)
+                    ->where('domain', $host)
+                    ->whereJsonContains('course_focuses', $scanRun->course_focus)
+                    ->whereNotNull('primary_email')
+                    ->first();
+
+                if ($prospect) {
+                    $prospect->scanRuns()->syncWithoutDetaching([$scanRun->id]);
+                    if ($prospect->business_lead_id) {
+                        $scanRun->businessLeads()->syncWithoutDetaching([$prospect->business_lead_id]);
+                    }
+
+                    continue;
+                }
+            }
+
             $placeId = 'web:'.hash('sha256', $host);
             $lead = BusinessLead::query()->where('place_id', $placeId)->first();
             if (! $lead && ! $scanRun?->course_focus) {
@@ -78,12 +99,12 @@ class ScrapeWebSearch implements ShouldQueue
 
         if ($scanRun) {
             $scanRun->update([
-                'total_places_found' => $queued,
-                'details_processed' => $queued,
+                'total_places_found' => $found,
+                'details_processed' => $found,
                 'websites_queued' => $queued,
                 'status' => $queued > 0 ? LeadScanRun::STATUS_RUNNING : LeadScanRun::STATUS_COMPLETED,
                 'finished_at' => $queued > 0 ? null : Carbon::now(),
-                'error_message' => $queued > 0 ? null : 'Web Search returned no official business websites for this query.',
+                'error_message' => $found === 0 ? 'Web Search returned no official business websites for this query.' : null,
             ]);
         }
     }

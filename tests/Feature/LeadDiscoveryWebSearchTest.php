@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\LeadDiscovery\ScrapeWebSearch;
+use App\Jobs\LeadDiscovery\CrawlBusinessWebsite;
 use App\Models\BusinessLead;
 use App\Models\LeadScanRun;
 use App\Models\CoursePartnerProspect;
@@ -114,6 +115,32 @@ class LeadDiscoveryWebSearchTest extends TestCase
         $this->assertCount(2, $saved->course_evidence);
         $this->assertCount(2, $saved->contact_emails);
         $this->assertCount(2, $saved->scanRuns);
+    }
+
+    public function test_course_scan_reuses_an_existing_contactable_prospect_without_crawling_again(): void
+    {
+        Queue::fake();
+        $lead = BusinessLead::create(['name' => 'Nail Academy', 'place_id' => 'nail-academy', 'website' => 'https://academy.example']);
+        $first = LeadScanRun::create(['query' => 'nail courses', 'location' => 'London, United Kingdom', 'course_focus' => 'nail', 'course_country' => 'GB', 'status' => LeadScanRun::STATUS_COMPLETED]);
+        $second = LeadScanRun::create(['query' => 'nail training', 'location' => 'Manchester, United Kingdom', 'course_focus' => 'nail', 'course_country' => 'GB', 'status' => LeadScanRun::STATUS_QUEUED]);
+        $prospect = app(CoursePartnerProspectRecorder::class)->record($lead, $first, [
+            'course_evidence' => [['focus' => 'nail', 'source_page' => 'https://academy.example/nail-course']],
+            'emails' => [['email' => 'hello@academy.example', 'source_page' => 'https://academy.example/contact']],
+        ]);
+        $service = $this->mock(WebSearchDiscoveryService::class);
+        $service->shouldReceive('discover')->once()->andReturn([[
+            'name' => 'Nail Academy',
+            'website' => 'https://academy.example',
+            'source_url' => 'https://academy.example/nail-course',
+        ]]);
+
+        (new ScrapeWebSearch($second->query, $second->location, $second->id, 'quick', 'brave'))->handle($service);
+
+        Queue::assertNotPushed(CrawlBusinessWebsite::class);
+        $this->assertSame(LeadScanRun::STATUS_COMPLETED, $second->fresh()->status);
+        $this->assertSame(1, $second->fresh()->total_places_found);
+        $this->assertSame(0, $second->fresh()->websites_queued);
+        $this->assertTrue($prospect->scanRuns()->whereKey($second->id)->exists());
     }
 
 
