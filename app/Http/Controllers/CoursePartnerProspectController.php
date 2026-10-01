@@ -54,7 +54,7 @@ class CoursePartnerProspectController extends Controller
                 return;
             }
 
-            fputcsv($handle, ['id', 'country_code', 'name', 'domain', 'website', 'location', 'course_focuses', 'course_evidence_urls', 'email', 'email_source_url', 'phone', 'review_status', 'review_notes', 'last_discovered_at']);
+            fputcsv($handle, ['id', 'country_code', 'name', 'domain', 'website', 'location', 'course_focuses', 'course_evidence_urls', 'email', 'email_source_url', 'phone', 'review_status', 'review_notes', 'last_discovered_at'], ',', '"', '');
             $this->filteredQuery($filters)->chunkById(100, function ($prospects) use ($handle): void {
                 foreach ($prospects as $prospect) {
                     $evidenceUrls = collect((array) $prospect->course_evidence)->pluck('source_page')->filter()->unique()->implode('; ');
@@ -75,7 +75,7 @@ class CoursePartnerProspectController extends Controller
                             $prospect->review_status,
                             $prospect->review_notes,
                             optional($prospect->last_discovered_at)?->toDateTimeString(),
-                        ]));
+                        ]), ',', '"', '');
                     }
                 }
             });
