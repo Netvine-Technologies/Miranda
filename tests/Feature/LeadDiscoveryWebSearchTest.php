@@ -10,6 +10,7 @@ use App\Models\CoursePartnerProspect;
 use App\Models\User;
 use App\Services\LeadDiscovery\CoursePartnerProspectRecorder;
 use App\Services\LeadDiscovery\WebSearchDiscoveryService;
+use App\Services\LeadDiscovery\WebsiteCrawler;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -141,6 +142,29 @@ class LeadDiscoveryWebSearchTest extends TestCase
         $this->assertSame(1, $second->fresh()->total_places_found);
         $this->assertSame(0, $second->fresh()->websites_queued);
         $this->assertTrue($prospect->scanRuns()->whereKey($second->id)->exists());
+    }
+
+    public function test_queued_duplicate_crawl_reuses_a_prospect_found_by_an_earlier_job(): void
+    {
+        $lead = BusinessLead::create(['name' => 'Nail Academy', 'place_id' => 'nail-academy', 'website' => 'https://academy.example']);
+        $first = LeadScanRun::create(['query' => 'nail courses', 'location' => 'London, United Kingdom', 'course_focus' => 'nail', 'course_country' => 'GB', 'status' => LeadScanRun::STATUS_COMPLETED]);
+        $second = LeadScanRun::create([
+            'query' => 'gel nail training', 'location' => 'Manchester, United Kingdom', 'course_focus' => 'nail',
+            'course_country' => 'GB', 'status' => LeadScanRun::STATUS_RUNNING,
+            'total_places_found' => 1, 'details_processed' => 1, 'websites_queued' => 1,
+        ]);
+        $prospect = app(CoursePartnerProspectRecorder::class)->record($lead, $first, [
+            'course_evidence' => [['focus' => 'nail', 'source_page' => 'https://academy.example/nail-course']],
+            'emails' => [['email' => 'hello@academy.example', 'source_page' => 'https://academy.example/contact']],
+        ]);
+        $crawler = $this->mock(WebsiteCrawler::class);
+        $crawler->shouldNotReceive('crawl');
+
+        (new CrawlBusinessWebsite($lead->id, $second->id))->handle($crawler);
+
+        $this->assertTrue($prospect->scanRuns()->whereKey($second->id)->exists());
+        $this->assertSame(1, $second->fresh()->websites_crawled);
+        $this->assertSame(LeadScanRun::STATUS_COMPLETED, $second->fresh()->status);
     }
 
 

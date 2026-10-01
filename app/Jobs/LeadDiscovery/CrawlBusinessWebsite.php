@@ -3,6 +3,7 @@
 namespace App\Jobs\LeadDiscovery;
 
 use App\Models\BusinessLead;
+use App\Models\CoursePartnerProspect;
 use App\Models\LeadScanRun;
 use App\Models\LeadEmail;
 use App\Models\LeadPhoneNumber;
@@ -33,6 +34,25 @@ class CrawlBusinessWebsite implements ShouldQueue
         }
 
         $scanRun = $this->scanRunId ? LeadScanRun::query()->find($this->scanRunId) : null;
+
+        if ($scanRun?->course_focus && $scanRun->course_country) {
+            $host = strtolower((string) parse_url((string) $lead->website, PHP_URL_HOST));
+            $domain = preg_replace('/^www\./', '', $host) ?? $host;
+            $prospect = CoursePartnerProspect::query()
+                ->where('country_code', $scanRun->course_country)
+                ->where('domain', $domain)
+                ->whereJsonContains('course_focuses', $scanRun->course_focus)
+                ->whereNotNull('primary_email')
+                ->first();
+
+            if ($prospect) {
+                $prospect->scanRuns()->syncWithoutDetaching([$scanRun->id]);
+                $scanRun->incrementCounters(crawled: true);
+                $this->markScanAsCompletedIfFinished($scanRun);
+
+                return;
+            }
+        }
 
         if (! $lead->website) {
             $lead->update(['scraped' => true]);
