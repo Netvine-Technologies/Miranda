@@ -35,7 +35,7 @@ class BraveSearchProvider implements SearchProvider
             ->get($baseUrl, array_filter([
                 'q' => $query,
                 'count' => min(max($limit, 1), 20),
-                'country' => strtoupper((string) ($this->config['country'] ?? 'GB')),
+                'country' => $this->countryForQuery($query),
                 'search_lang' => (string) ($this->config['search_lang'] ?? 'en'),
                 'safesearch' => (string) ($this->config['safe_search'] ?? 'moderate'),
                 'spellcheck' => '1',
@@ -84,6 +84,23 @@ class BraveSearchProvider implements SearchProvider
     public function configured(): bool
     {
         return trim((string) ($this->config['api_key'] ?? '')) !== '';
+    }
+
+    protected function countryForQuery(string $query): string
+    {
+        foreach ([
+            'United Kingdom' => 'GB',
+            'United States' => 'US',
+            'Canada' => 'CA',
+            'Australia' => 'AU',
+            'New Zealand' => 'NZ',
+        ] as $name => $code) {
+            if (preg_match('/\b'.preg_quote($name, '/').'\b/i', $query) === 1) {
+                return $code;
+            }
+        }
+
+        return strtoupper((string) ($this->config['country'] ?? 'GB'));
     }
 
     protected function consumeMonthlyRequestQuota(): void

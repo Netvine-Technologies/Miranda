@@ -54,8 +54,28 @@ class WebSearchDiscoveryServiceTest extends TestCase
         Http::assertSent(function ($request): bool {
             return $request->hasHeader('X-Subscription-Token', 'test-key')
                 && $request['q'] === 'reformer pilates Sydney, Australia official website contact'
+                && $request['country'] === 'AU'
                 && (int) $request['count'] === 20;
         });
+    }
+
+    public function test_brave_uses_the_named_country_in_a_course_search(): void
+    {
+        config([
+            'search_discovery.providers.brave.api_key' => 'test-key',
+            'search_discovery.providers.brave.country' => 'GB',
+            'search_discovery.providers.brave.quota_cache_store' => 'array',
+        ]);
+        Http::fake(['*' => Http::response(['web' => ['results' => []]])]);
+
+        $provider = new BraveSearchProvider(config('search_discovery.providers.brave'));
+        $provider->search('lash training Toronto, ON, Canada official website', 20);
+        $provider->search('lash training New York, NY, United States official website', 20);
+        $provider->search('lash training Auckland, New Zealand official website', 20);
+
+        Http::assertSent(fn ($request): bool => str_contains($request['q'], 'Toronto') && $request['country'] === 'CA');
+        Http::assertSent(fn ($request): bool => str_contains($request['q'], 'New York') && $request['country'] === 'US');
+        Http::assertSent(fn ($request): bool => str_contains($request['q'], 'Auckland') && $request['country'] === 'NZ');
     }
 
     public function test_brave_monthly_safety_limit_blocks_extra_requests(): void
