@@ -9,7 +9,7 @@ class CoursePartnerOutreachEmail extends Model
 {
     protected $fillable = [
         'course_partner_prospect_id', 'campaign_key', 'recipient_email', 'subject',
-        'tracking_token_hash', 'status', 'commission_percent', 'commission_months',
+        'tracking_token_hash', 'unsubscribe_token_hash', 'status', 'commission_percent', 'commission_months',
         'sent_at', 'first_opened_at', 'last_opened_at', 'open_count', 'error_message',
     ];
 

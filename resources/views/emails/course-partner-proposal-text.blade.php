@@ -1,21 +1,21 @@
-A partnership for your graduates
-
 Hi there,
 
-I’m Shane from Booking Tree, and I wanted to share a partnership idea for students completing your {{ $courseType }} courses.
+I'm Shane from Booking Tree, an online booking system that helps businesses accept bookings, collect payments and send appointment reminders.
 
-As your graduates start taking on clients, Booking Tree can help them accept online bookings, collect payments and send appointment reminders.
+We’d love to partner with {{ $providerName }} so you can recommend Booking Tree to your students when they graduate and start taking on clients.
 
-The idea is simple: recommend Booking Tree to your students when they finish their course, and earn {{ $commissionPercent }}% of each referred student’s subscription for their first {{ $commissionMonths }} months, while they remain a paying customer.
+In return, you’d earn {{ $commissionPercent }}% commission on each referred graduate’s paid subscription for their first {{ $commissionMonths }} months, while they remain a paying customer.
 
-There’s no cost to take part, and we would provide a dedicated referral link so you receive credit for the students you introduce.
+There’s no cost for your organisation to join. We’d provide a dedicated referral link for you to share with students, so we can track your referrals and credit your commission.
 
-Would you be interested in seeing how this could work for {{ $providerName }}?
+You can read more about the programme at {{ $partnerEnquiryUrl }}.
 
-View the programme and enquire: {{ $partnerEnquiryUrl }}
+Would you be interested in partnering with us?
 
 Thanks,
-Shane
+Shane Johnson
 Booking Tree
+bookingtree.io
 
 If this isn’t relevant, just let me know and I won’t follow up.
+Unsubscribe: {{ $unsubscribeUrl }}

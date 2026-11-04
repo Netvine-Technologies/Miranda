@@ -15,8 +15,8 @@
         a { color:#0b7a50; }
         .toolbar { display:flex; gap:12px; align-items:end; flex-wrap:wrap; }
         .toolbar label { display:grid; gap:4px; min-width:145px; }
-        select,textarea,button { font:inherit; }
-        select,textarea { border:1px solid #baccc1; border-radius:7px; padding:7px; background:white; color:#1f2937; }
+        select,textarea,input,button { font:inherit; }
+        select,textarea,input[type=date] { border:1px solid #baccc1; border-radius:7px; padding:7px; background:white; color:#1f2937; }
         button,.button-link { display:inline-block; border:0; border-radius:7px; padding:8px 13px; background:#0b7a50; color:white; text-decoration:none; cursor:pointer; }
         .table-wrap { overflow-x:auto; }
         table { width:100%; border-collapse:collapse; min-width:900px; }
@@ -87,6 +87,9 @@
                             </td>
                             <td>
                                 {{ $prospect->primary_email ?: 'No public email found' }}
+                                @if ($prospect->primary_email && in_array(strtolower($prospect->primary_email), $suppressedAddresses, true))
+                                    <br><strong>Suppressed</strong>
+                                @endif
                                 @if ($prospect->email_source_url)<br><a href="{{ $prospect->email_source_url }}" target="_blank" rel="noopener noreferrer">Email source</a>@endif
                                 @if ($prospect->phone)<br><span class="muted">{{ $prospect->phone }}</span>@endif
                             </td>

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Mail\CoursePartnerProposal;
 use App\Models\CoursePartnerOutreachEmail;
 use App\Models\CoursePartnerProspect;
+use App\Models\CoursePartnerSuppression;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use LogicException;
@@ -38,8 +39,17 @@ class CoursePartnerOutreachService
         if ((array) $prospect->course_evidence === []) {
             throw new LogicException('The prospect has no verified course page.');
         }
+        if (CoursePartnerSuppression::query()->where('email', strtolower($prospect->primary_email))->exists()) {
+            throw new LogicException('This recipient has opted out or been rejected.');
+        }
         if ($prospect->outreachEmails()->where('campaign_key', config('course_partner_outreach.campaign_key'))->exists()) {
             throw new LogicException('This prospect already has an email record for this campaign.');
+        }
+        if (CoursePartnerOutreachEmail::query()
+            ->where('campaign_key', config('course_partner_outreach.campaign_key'))
+            ->where('recipient_email', strtolower($prospect->primary_email))
+            ->exists()) {
+            throw new LogicException('This email address already has a record for this campaign.');
         }
 
         $focuses = (array) $prospect->course_focuses;
@@ -51,14 +61,29 @@ class CoursePartnerOutreachService
     private function send(?CoursePartnerProspect $prospect, string $address, string $provider, string $courseType): CoursePartnerOutreachEmail
     {
         $baseUrl = rtrim((string) config('course_partner_outreach.tracking_base_url'), '/');
-        if (! filter_var($baseUrl, FILTER_VALIDATE_URL) || parse_url($baseUrl, PHP_URL_SCHEME) !== 'https') {
-            throw new LogicException('Set COURSE_PARTNER_TRACKING_BASE_URL to a public HTTPS address before sending.');
+        $scheme = parse_url($baseUrl, PHP_URL_SCHEME);
+        if (! filter_var($baseUrl, FILTER_VALIDATE_URL)
+            || ! in_array($scheme, $prospect === null ? ['http', 'https'] : ['https'], true)) {
+            throw new LogicException('Set COURSE_PARTNER_TRACKING_BASE_URL to a public HTTPS address for provider sending.');
         }
-        if (! config('services.mailgun.domain') || ! config('services.mailgun.secret')) {
-            throw new LogicException('The Mailgun domain and API key must be configured in Miranda before sending.');
+        $mailer = (string) config('course_partner_outreach.mailer');
+        if ($mailer !== 'course_partner_smtp') {
+            throw new LogicException('Course partner email requires the dedicated SMTP mailer.');
         }
-        if (config('services.mailgun.endpoint') !== 'api.eu.mailgun.net') {
-            throw new LogicException('Use the Booking Tree Mailgun EU endpoint before sending.');
+        $smtp = (array) config('mail.mailers.course_partner_smtp');
+        if (! in_array($smtp['scheme'] ?? null, ['smtps', 'smtp'], true)
+            || ! in_array((int) ($smtp['port'] ?? 0), [465, 587], true)
+            || ! is_string($smtp['host'] ?? null) || trim($smtp['host']) === ''
+            || ! is_string($smtp['username'] ?? null) || trim($smtp['username']) === ''
+            || ! is_string($smtp['password'] ?? null) || $smtp['password'] === '') {
+            throw new LogicException('Configure the dedicated course partner SMTP mailbox before sending.');
+        }
+        if (($smtp['scheme'] === 'smtps' && (int) $smtp['port'] !== 465)
+            || ($smtp['scheme'] === 'smtp' && (int) $smtp['port'] !== 587)) {
+            throw new LogicException('Use port 465 for SMTPS, or port 587 for SMTP with STARTTLS.');
+        }
+        if (filter_var((string) config('course_partner_outreach.sender_address'), FILTER_VALIDATE_EMAIL) === false) {
+            throw new LogicException('Configure a valid From address authorised for the SMTP mailbox.');
         }
         $percent = (int) config('course_partner_outreach.commission_percent');
         $months = (int) config('course_partner_outreach.commission_months');
@@ -68,21 +93,24 @@ class CoursePartnerOutreachService
 
         $provider = Str::limit(trim(preg_replace('/[\r\n\x00-\x1f]+/', ' ', $provider) ?? $provider), 120, '');
         $token = bin2hex(random_bytes(32));
-        $subject = "Partnership idea for {$provider} graduates";
+        $unsubscribeToken = bin2hex(random_bytes(32));
+        $subject = "Partnership idea for {$provider}";
         $record = CoursePartnerOutreachEmail::query()->create([
             'course_partner_prospect_id' => $prospect?->id,
             'campaign_key' => (string) config('course_partner_outreach.campaign_key'),
             'recipient_email' => $address,
             'subject' => $subject,
             'tracking_token_hash' => hash('sha256', $token),
+            'unsubscribe_token_hash' => hash('sha256', $unsubscribeToken),
             'status' => 'pending',
             'commission_percent' => $percent,
             'commission_months' => $months,
         ]);
         $trackingUrl = $baseUrl.'/course-partner-email/open/'.$token.'.gif';
+        $unsubscribeUrl = $baseUrl.'/course-partner-email/unsubscribe/'.$unsubscribeToken;
 
         try {
-            Mail::mailer('mailgun')->to($address)->send(new CoursePartnerProposal($provider, $courseType, $trackingUrl, $percent, $months));
+            Mail::mailer($mailer)->to($address)->send(new CoursePartnerProposal($provider, $courseType, $trackingUrl, $unsubscribeUrl, $percent, $months));
             $record->update(['status' => 'sent', 'sent_at' => now()]);
         } catch (Throwable $exception) {
             $record->update(['status' => 'failed', 'error_message' => class_basename($exception)]);

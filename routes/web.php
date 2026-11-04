@@ -9,6 +9,7 @@ use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadDiscoveryController;
 use App\Http\Controllers\CoursePartnerProspectController;
 use App\Http\Controllers\CoursePartnerOpenController;
+use App\Http\Controllers\CoursePartnerUnsubscribeController;
 use App\Http\Controllers\CoursePartnerEmailActivityController;
 use App\Http\Controllers\SearchDiscoveryController;
 use App\Http\Controllers\SeoProductController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\WebStoreController;
 use App\Http\Controllers\WebProductController;
 use App\Http\Controllers\ZoomPhoneController;
 use App\Models\User;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 
 Route::get('/', function () {
     return redirect('/login');
@@ -24,6 +26,14 @@ Route::get('/', function () {
 Route::get('/course-partner-email/open/{token}.gif', CoursePartnerOpenController::class)
     ->where('token', '[0-9a-f]{64}')
     ->name('course-partners.email.open');
+
+Route::get('/course-partner-email/unsubscribe/{token}', [CoursePartnerUnsubscribeController::class, 'show'])
+    ->where('token', '[0-9a-f]{64}')
+    ->name('course-partners.email.unsubscribe.show');
+Route::post('/course-partner-email/unsubscribe/{token}', [CoursePartnerUnsubscribeController::class, 'store'])
+    ->where('token', '[0-9a-f]{64}')
+    ->withoutMiddleware([ValidateCsrfToken::class])
+    ->name('course-partners.email.unsubscribe.store');
 
 Route::match(['get', 'post'], '/setup-owner', function (Request $request) {
     abort_if(User::query()->exists(), 404);

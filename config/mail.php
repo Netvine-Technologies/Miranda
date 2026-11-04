@@ -49,6 +49,17 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
+        'course_partner_smtp' => [
+            'transport' => 'smtp',
+            'scheme' => env('COURSE_PARTNER_SMTP_SCHEME', 'smtps'),
+            'host' => env('COURSE_PARTNER_SMTP_HOST'),
+            'port' => env('COURSE_PARTNER_SMTP_PORT', 465),
+            'username' => env('COURSE_PARTNER_SMTP_USERNAME'),
+            'password' => env('COURSE_PARTNER_SMTP_PASSWORD'),
+            'require_tls' => true,
+            'timeout' => 30,
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],

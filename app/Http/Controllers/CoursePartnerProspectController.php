@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CoursePartnerProspect;
+use App\Models\CoursePartnerSuppression;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,12 +19,17 @@ class CoursePartnerProspectController extends Controller
         $ready = Schema::hasTable('course_partner_prospects');
         $outreachReady = Schema::hasTable('course_partner_outreach_emails');
         $filters = $this->filters($request);
+        $prospects = $ready ? $this->filteredQuery($filters)
+            ->when($outreachReady, fn (Builder $query) => $query->with('latestOutreachEmail'))
+            ->orderByDesc('last_discovered_at')->paginate(30)->withQueryString() : null;
+        $suppressedAddresses = $prospects && Schema::hasTable('course_partner_suppressions')
+            ? CoursePartnerSuppression::query()->whereIn('email', $prospects->pluck('primary_email')->filter()->map(fn ($email) => strtolower($email))->all())->pluck('email')->all()
+            : [];
 
         return view('leads.course-partners', [
             'ready' => $ready,
-            'prospects' => $ready ? $this->filteredQuery($filters)
-                ->when($outreachReady, fn (Builder $query) => $query->with('latestOutreachEmail'))
-                ->orderByDesc('last_discovered_at')->paginate(30)->withQueryString() : null,
+            'prospects' => $prospects,
+            'suppressedAddresses' => $suppressedAddresses,
             'filters' => $filters,
             'outreachReady' => $outreachReady,
             'countries' => (array) config('leads.course_partner_countries', []),
@@ -38,11 +44,20 @@ class CoursePartnerProspectController extends Controller
             'review_notes' => ['nullable', 'string', 'max:5000'],
         ]);
 
-        $coursePartnerProspect->update([
+        $changes = [
             'review_status' => $data['review_status'],
             'review_notes' => $data['review_notes'] ?? null,
             'reviewed_at' => $data['review_status'] === CoursePartnerProspect::STATUS_NEW ? null : now(),
-        ]);
+        ];
+        $coursePartnerProspect->update($changes);
+        if ($data['review_status'] === CoursePartnerProspect::STATUS_REJECTED
+            && $coursePartnerProspect->primary_email
+            && Schema::hasTable('course_partner_suppressions')) {
+            CoursePartnerSuppression::query()->firstOrCreate(
+                ['email' => strtolower($coursePartnerProspect->primary_email)],
+                ['reason' => 'rejected'],
+            );
+        }
 
         return back()->with('status', 'Course partner prospect updated.');
     }
