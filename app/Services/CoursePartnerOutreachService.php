@@ -13,7 +13,7 @@ use Throwable;
 
 class CoursePartnerOutreachService
 {
-    public function sendPreview(string $address): CoursePartnerOutreachEmail
+    public function sendPreview(string $address, string $focus = 'nail'): CoursePartnerOutreachEmail
     {
         if (filter_var($address, FILTER_VALIDATE_EMAIL) === false) {
             throw new LogicException('A valid review email address is required.');
@@ -22,7 +22,14 @@ class CoursePartnerOutreachService
             throw new LogicException('Preview sending is restricted to the configured review inbox.');
         }
 
-        return $this->send(null, strtolower($address), 'Glow Beauty Academy', 'nail technician');
+        [$provider, $courseType] = match ($focus) {
+            'nail' => ['Glow Nail Academy', 'nail technician'],
+            'lash' => ['Glow Lash Academy', 'lash technician'],
+            'both' => ['Glow Beauty Academy', 'nail and lash'],
+            default => throw new LogicException('Review focus must be nail, lash, or both.'),
+        };
+
+        return $this->send(null, strtolower($address), $provider, $courseType);
     }
 
     public function sendProspect(CoursePartnerProspect $prospect): CoursePartnerOutreachEmail

@@ -9,13 +9,14 @@ use Throwable;
 
 class SendCoursePartnerEmail extends Command
 {
-    protected $signature = 'course-partners:email {--review-to= : Send the fictional template to a review inbox} {--prospect= : Send to one reviewed prospect by ID}';
+    protected $signature = 'course-partners:email {--review-to= : Send the fictional template to a review inbox} {--review-focus=nail : Review copy focus: nail, lash, or both} {--prospect= : Send to one reviewed prospect by ID}';
 
     protected $description = 'Send one tracked Course Partner Programme email; prospect sending requires the campaign switch';
 
     public function handle(CoursePartnerOutreachService $outreach): int
     {
         $reviewTo = trim((string) $this->option('review-to'));
+        $reviewFocus = trim((string) $this->option('review-focus'));
         $prospectId = trim((string) $this->option('prospect'));
         if (($reviewTo === '') === ($prospectId === '')) {
             $this->error('Provide exactly one of --review-to or --prospect.');
@@ -27,10 +28,20 @@ class SendCoursePartnerEmail extends Command
 
             return self::FAILURE;
         }
+        if ($reviewTo === '' && $reviewFocus !== 'nail') {
+            $this->error('--review-focus can only be used with --review-to.');
+
+            return self::FAILURE;
+        }
+        if ($reviewTo !== '' && ! in_array($reviewFocus, ['nail', 'lash', 'both'], true)) {
+            $this->error('Review focus must be nail, lash, or both.');
+
+            return self::FAILURE;
+        }
 
         try {
             $record = $reviewTo !== ''
-                ? $outreach->sendPreview($reviewTo)
+                ? $outreach->sendPreview($reviewTo, $reviewFocus)
                 : $outreach->sendProspect(CoursePartnerProspect::query()->findOrFail((int) $prospectId));
         } catch (Throwable $exception) {
             $this->error('Email was not confirmed sent. Check configuration and the email record before retrying.');

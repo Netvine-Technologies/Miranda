@@ -97,6 +97,39 @@ class CoursePartnerOutreachTest extends TestCase
         });
     }
 
+    public function test_review_copies_show_each_industry_only_to_the_configured_inbox(): void
+    {
+        Mail::fake();
+        config([
+            'course_partner_outreach.review_address' => 'shane.johnson386@gmail.com',
+            'course_partner_outreach.tracking_base_url' => 'https://track.bookingtreeoutreach.com',
+            'course_partner_outreach.sender_address' => 'shane@bookingtreeoutreach.com',
+            'mail.mailers.course_partner_smtp' => [
+                'scheme' => 'smtps',
+                'host' => 'smtp.gmail.com',
+                'port' => 465,
+                'username' => 'shane@bookingtreeoutreach.com',
+                'password' => 'test-only-placeholder',
+            ],
+        ]);
+
+        foreach ([
+            'nail' => 'graduates of your nail technician courses',
+            'lash' => 'graduates of your lash technician courses',
+            'both' => 'graduates of your nail and lash courses',
+        ] as $focus => $phrase) {
+            app(CoursePartnerOutreachService::class)->sendPreview('shane.johnson386@gmail.com', $focus);
+            Mail::assertSent(CoursePartnerProposal::class, fn (CoursePartnerProposal $mail): bool =>
+                $mail->to[0]['address'] === 'shane.johnson386@gmail.com'
+                && str_contains($mail->render(), $phrase)
+            );
+        }
+
+        Mail::assertSentCount(3);
+        $this->assertDatabaseCount('course_partner_outreach_emails', 3);
+        $this->assertDatabaseCount('course_partner_prospects', 0);
+    }
+
     public function test_suppressed_prospect_cannot_be_sent(): void
     {
         config(['course_partner_outreach.enabled' => true]);
