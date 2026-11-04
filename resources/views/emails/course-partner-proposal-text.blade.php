@@ -2,7 +2,7 @@ Hi there,
 
 I'm Shane from Booking Tree, an online booking system that helps businesses accept bookings, collect payments and send appointment reminders.
 
-We’d love to partner with {{ $providerName }} so you can recommend Booking Tree to your students when they graduate and start taking on clients.
+We’d love to partner with {{ $providerName }} so you can recommend Booking Tree to {{ $graduateDescription }} as they start taking on clients.
 
 In return, you’d earn {{ $commissionPercent }}% commission on each referred graduate’s paid subscription for their first {{ $commissionMonths }} months, while they remain a paying customer.
 

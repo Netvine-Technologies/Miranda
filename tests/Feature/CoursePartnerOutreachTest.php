@@ -120,6 +120,48 @@ class CoursePartnerOutreachTest extends TestCase
         }
     }
 
+    public function test_provider_email_describes_the_reviewed_course_industry(): void
+    {
+        Mail::fake();
+        config([
+            'course_partner_outreach.enabled' => true,
+            'course_partner_outreach.tracking_base_url' => 'https://track.bookingtreeoutreach.com',
+            'course_partner_outreach.sender_address' => 'shane@bookingtreeoutreach.com',
+            'mail.mailers.course_partner_smtp' => [
+                'scheme' => 'smtps',
+                'host' => 'smtp.gmail.com',
+                'port' => 465,
+                'username' => 'shane@bookingtreeoutreach.com',
+                'password' => 'test-only-placeholder',
+            ],
+        ]);
+
+        foreach ([
+            'nail' => [['nail'], 'graduates of your nail technician courses'],
+            'lash' => [['lash'], 'graduates of your lash technician courses'],
+            'both' => [['nail', 'lash'], 'graduates of your nail and lash courses'],
+        ] as $key => [$focuses, $phrase]) {
+            $prospect = CoursePartnerProspect::query()->create([
+                'country_code' => 'GB',
+                'domain' => $key.'.example',
+                'name' => ucfirst($key).' Academy',
+                'website' => 'https://'.$key.'.example',
+                'review_status' => CoursePartnerProspect::STATUS_REVIEWED,
+                'primary_email' => 'hello@'.$key.'.example',
+                'course_focuses' => $focuses,
+                'course_evidence' => [['focus' => $focuses[0], 'source_page' => 'https://'.$key.'.example/course']],
+            ]);
+
+            app(CoursePartnerOutreachService::class)->sendProspect($prospect);
+            Mail::assertSent(CoursePartnerProposal::class, fn (CoursePartnerProposal $mail): bool =>
+                $mail->to[0]['address'] === 'hello@'.$key.'.example'
+                && str_contains($mail->render(), $phrase)
+            );
+        }
+
+        $this->assertDatabaseCount('course_partner_outreach_emails', 3);
+    }
+
     public function test_unsubscribe_requires_post_then_suppresses_the_address(): void
     {
         $token = str_repeat('c', 64);

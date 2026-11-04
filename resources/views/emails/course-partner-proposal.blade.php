@@ -13,7 +13,7 @@
     <tr><td style="color:#222222;font-size:16px;line-height:1.6;overflow-wrap:break-word;">
       <p style="margin:0 0 18px;">Hi there,</p>
       <p style="margin:0 0 18px;">I'm Shane from Booking Tree, an online booking system that helps businesses accept bookings, collect payments and send appointment reminders.</p>
-      <p style="margin:0 0 18px;">We’d love to partner with {{ $providerName }} so you can recommend Booking Tree to your students when they graduate and start taking on clients.</p>
+      <p style="margin:0 0 18px;">We’d love to partner with {{ $providerName }} so you can recommend Booking Tree to {{ $graduateDescription }} as they start taking on clients.</p>
       <p style="margin:0 0 18px;">In return, you’d earn <strong>{{ $commissionPercent }}% commission on each referred graduate’s paid subscription for their first {{ $commissionMonths }} months</strong>, while they remain a paying customer.</p>
       <p style="margin:0 0 18px;">There’s no cost for your organisation to join. We’d provide a dedicated referral link for you to share with students, so we can track your referrals and credit your commission.</p>
       <p style="margin:0 0 18px;">You can read more about the programme at <a href="{{ $partnerEnquiryUrl }}" style="color:#334155;text-decoration:underline;">bookingtree.io/partners/educators</a>.</p>

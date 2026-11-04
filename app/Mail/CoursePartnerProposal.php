@@ -37,6 +37,12 @@ class CoursePartnerProposal extends Mailable
             ->with([
                 'logoUrl' => (string) config('course_partner_outreach.logo_url'),
                 'partnerEnquiryUrl' => (string) config('course_partner_outreach.partner_enquiry_url'),
+                'graduateDescription' => match ($this->courseType) {
+                    'nail technician' => 'graduates of your nail technician courses',
+                    'lash technician' => 'graduates of your lash technician courses',
+                    'nail and lash' => 'graduates of your nail and lash courses',
+                    default => 'your students when they graduate',
+                },
             ]);
     }
 }

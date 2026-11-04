@@ -53,7 +53,12 @@ class CoursePartnerOutreachService
         }
 
         $focuses = (array) $prospect->course_focuses;
-        $courseType = in_array('nail', $focuses, true) ? 'nail technician' : 'lash technician';
+        $courseType = match (true) {
+            in_array('nail', $focuses, true) && in_array('lash', $focuses, true) => 'nail and lash',
+            in_array('nail', $focuses, true) => 'nail technician',
+            in_array('lash', $focuses, true) => 'lash technician',
+            default => 'general',
+        };
 
         return $this->send($prospect, strtolower($prospect->primary_email), $prospect->name, $courseType);
     }

@@ -30,6 +30,8 @@ php artisan course-partners:email --prospect=123
 
 The command sends to one prospect only. It refuses an unreviewed prospect, missing contact, missing course evidence, a suppressed address, or a second email for the same campaign. A failed or ambiguous send stays recorded for manual inspection before any retry. There is no automatic follow-up or bulk sender.
 
+The email uses the prospect's recorded course focus to describe graduates of nail technician courses, lash technician courses, or both. A prospect without either focus receives generic student wording. The commission offer, programme link, layout, and unsubscribe remain the same.
+
 ## Open observations
 
 Each HTML message has a unique, random image URL. Miranda stores only its SHA-256 hash and updates first-open time, last-open time and image-load count when the URL is requested. `/leads/course-partners/emails` shows the recipient and those values; the prospect list shows the latest send and first observed open. The plain-text part has no image.
