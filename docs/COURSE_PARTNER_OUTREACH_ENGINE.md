@@ -22,13 +22,15 @@ Outinfra's SMTP host, port, and credentials must come from the actual mailbox se
 
 ## Sending to a provider after review
 
-Mark the provider **Reviewed** on `/leads/course-partners` after checking the course page and email. Then explicitly enable `COURSE_PARTNER_OUTREACH_ENABLED=true` and run:
+Mark the provider **Reviewed** on `/leads/course-partners` after checking the course page and email. Then stage it:
 
 ```sh
-php artisan course-partners:email --prospect=123
+php artisan course-partners:queue stage 123
 ```
 
-The command sends to one prospect only. It refuses an unreviewed prospect, missing contact, missing course evidence, a suppressed address, or a second email for the same campaign. A failed or ambiguous send stays recorded for manual inspection before any retry. There is no automatic follow-up or bulk sender.
+Provider emails are staged in Miranda's dedicated sending queue. The sender refuses an unreviewed prospect, missing contact, missing course evidence, a suppressed address, or a second email for the same campaign. A failed or ambiguous send stays recorded for manual inspection before any retry. There is no automatic follow-up.
+
+The queue starts paused. Stage only reviewed prospect IDs with `php artisan course-partners:queue stage 123 124`; inspect `php artisan course-partners:queue status` or the Sending queue panel on `/leads/course-partners/emails`. Pause or resume in that panel or with `php artisan course-partners:queue pause` and `php artisan course-partners:queue resume --daily-limit=20 --spacing-minutes=5`. The scheduler claims at most one entry per minute, enforces a daily attempt cap and minimum spacing, and rechecks the prospect and suppression before sending. `claimed` or `failed` entries never retry automatically. The campaign environment switch must also be enabled for any provider send. The direct `--prospect` command is disabled so sends follow the queue controls.
 
 The email uses the prospect's recorded course focus to describe graduates of nail technician courses, lash technician courses, or both. A prospect without either focus receives generic student wording. The commission offer, programme link, layout, and unsubscribe remain the same.
 

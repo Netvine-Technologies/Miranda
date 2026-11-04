@@ -11,7 +11,7 @@ class SendCoursePartnerEmail extends Command
 {
     protected $signature = 'course-partners:email {--review-to= : Send the fictional template to a review inbox} {--review-focus=nail : Review copy focus: nail, lash, or both} {--prospect= : Send to one reviewed prospect by ID}';
 
-    protected $description = 'Send one tracked Course Partner Programme email; prospect sending requires the campaign switch';
+    protected $description = 'Send one tracked Course Partner Programme review copy; provider sends use the controlled queue';
 
     public function handle(CoursePartnerOutreachService $outreach): int
     {
@@ -25,6 +25,11 @@ class SendCoursePartnerEmail extends Command
         }
         if ($prospectId !== '' && (! ctype_digit($prospectId) || (int) $prospectId < 1)) {
             $this->error('The prospect ID must be a positive integer.');
+
+            return self::FAILURE;
+        }
+        if ($prospectId !== '') {
+            $this->error('Stage reviewed prospects with course-partners:queue stage; direct provider sending is disabled.');
 
             return self::FAILURE;
         }

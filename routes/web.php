@@ -116,6 +116,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/leads/discovery/course-campaign/{leadScanRun}/export', [LeadDiscoveryController::class, 'exportCourseCampaign'])->name('leads.discovery.course-campaign.export');
     Route::get('/leads/course-partners', [CoursePartnerProspectController::class, 'index'])->name('leads.course-partners.index');
     Route::get('/leads/course-partners/emails', CoursePartnerEmailActivityController::class)->name('leads.course-partners.emails');
+    Route::post('/leads/course-partners/emails/queue-control', [CoursePartnerEmailActivityController::class, 'control'])->name('leads.course-partners.queue-control');
     Route::get('/leads/course-partners/export', [CoursePartnerProspectController::class, 'export'])->name('leads.course-partners.export');
     Route::patch('/leads/course-partners/{coursePartnerProspect}', [CoursePartnerProspectController::class, 'update'])->name('leads.course-partners.update');
     Route::get('/leads', [LeadController::class, 'index'])->name('leads.index');

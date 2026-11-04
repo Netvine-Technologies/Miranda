@@ -136,6 +136,11 @@ Schedule::call(function (): void {
 
 Schedule::job(new ProcessPriceWatchSubscriptions)->everyFiveMinutes();
 
+Schedule::command('course-partners:dispatch-one')
+    ->everyMinute()
+    ->withoutOverlapping(2)
+    ->when(fn (): bool => (bool) config('course_partner_outreach.enabled'));
+
 Schedule::command('zoom-phone:sync --days=2')
     ->everyMinute()
     ->withoutOverlapping(5)
